@@ -1,0 +1,757 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+               "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>NLP12 Assignment 2: Bayesian Curve Fitting, Classification</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
+<meta name="title" content="NLP12 Assignment 2: Bayesian Curve Fitting, Classification"/>
+<meta name="generator" content="Org-mode"/>
+<meta name="generated" content="2012-05-25"/>
+<meta name="author" content="Aviad Reich, ID 052978509"/>
+<meta name="description" content=""/>
+<meta name="keywords" content=""/>
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  html { font-family: Times, serif; font-size: 12pt; }
+  .title  { text-align: center; }
+  .todo   { color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #add8e6; font-weight:normal }
+  .target { }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  {margin-left:auto; margin-right:0px;  text-align:right;}
+  .left   {margin-left:0px;  margin-right:auto; text-align:left;}
+  .center {margin-left:auto; margin-right:auto; text-align:center;}
+  p.verse { margin-left: 3% }
+  pre {
+	border: 1pt solid #AEBDCC;
+	background-color: #F3F5F7;
+	padding: 5pt;
+	font-family: courier, monospace;
+        font-size: 90%;
+        overflow:auto;
+  }
+  table { border-collapse: collapse; }
+  td, th { vertical-align: top;  }
+  th.right  { text-align:center;  }
+  th.left   { text-align:center;   }
+  th.center { text-align:center; }
+  td.right  { text-align:right;  }
+  td.left   { text-align:left;   }
+  td.center { text-align:center; }
+  dt { font-weight: bold; }
+  div.figure { padding: 0.5em; }
+  div.figure p { text-align: center; }
+  div.inlinetask {
+    padding:10px;
+    border:2px solid gray;
+    margin:10px;
+    background: #ffffcc;
+  }
+  textarea { overflow-x: auto; }
+  .linenr { font-size:smaller }
+  .code-highlighted {background-color:#ffff00;}
+  .org-info-js_info-navigation { border-style:none; }
+  #org-info-js_console-label { font-size:10px; font-weight:bold;
+                               white-space:nowrap; }
+  .org-info-js_search-highlight {background-color:#ffff00; color:#000000;
+                                 font-weight:bold; }
+  /*]]>*/-->
+</style>
+<link rel="stylesheet" type="text/css" href="nlp.css" media="all" />
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+<script type="text/javascript" src="http://orgmode.org/mathjax/MathJax.js">
+<!--/*--><![CDATA[/*><!--*/
+    MathJax.Hub.Config({
+        // Only one of the two following lines, depending on user settings
+        // First allows browser-native MathML display, second forces HTML/CSS
+        //  config: ["MMLorHTML.js"], jax: ["input/TeX"],
+            jax: ["input/TeX", "output/HTML-CSS"],
+        extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js",
+                     "TeX/noUndefined.js"],
+        tex2jax: {
+            inlineMath: [ ["\\(","\\)"] ],
+            displayMath: [ ['$$','$$'], ["\\[","\\]"], ["\\begin{displaymath}","\\end{displaymath}"] ],
+            skipTags: ["script","noscript","style","textarea","pre","code"],
+            ignoreClass: "tex2jax_ignore",
+            processEscapes: false,
+            processEnvironments: true,
+            preview: "TeX"
+        },
+        showProcessingMessages: true,
+        displayAlign: "center",
+        displayIndent: "2em",
+
+        "HTML-CSS": {
+             scale: 100,
+             availableFonts: ["STIX","TeX"],
+             preferredFont: "TeX",
+             webFont: "TeX",
+             imageFont: "TeX",
+             showMathMenu: true,
+        },
+        MMLorHTML: {
+             prefer: {
+                 MSIE:    "MML",
+                 Firefox: "MML",
+                 Opera:   "HTML",
+                 other:   "HTML"
+             }
+        }
+    });
+/*]]>*///-->
+</script>
+</head>
+<body>
+
+<div id="preamble">
+
+</div>
+
+<div id="content">
+<h1 class="title">NLP12 Assignment 2: Bayesian Curve Fitting, Classification</h1>
+
+
+<p>
+<b>NOTES:</b> 
+</p><ol>
+<li>The script for running the code as done by me in preparing this
+   assignment, is written to be used in <a href="http://ipython.org">IPython</a> <sup><a class="footref" name="fnr.1" href="#fn.1">1</a></sup>. A detailed
+   session (with outputs as well, is given in <a href="code/session.ipy">session.ipy</a>)
+</li>
+<li>This document has some equations that require javascript to run,
+   and an internet connection (to <a href="http://orgmode.org/">http://orgmode.org/</a> for the functions).
+</li>
+</ol>
+
+
+
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec-1">1 Polynomial Curve Fitting</a>
+<ul>
+<li><a href="#sec-1-1">1.1 Synthetic Dataset Generation</a></li>
+<li><a href="#sec-1-2">1.2 Polynomial Curve Fitting</a></li>
+<li><a href="#sec-1-3">1.3 Polynomial Curve Fitting with Regularization</a></li>
+<li><a href="#sec-1-4">1.4 Probabilistic Regression Framework</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-1" class="outline-2">
+<h2 id="sec-1"><span class="section-number-2">1</span> Polynomial Curve Fitting</h2>
+<div class="outline-text-2" id="text-1">
+
+
+
+</div>
+
+<div id="outline-container-1-1" class="outline-3">
+<h3 id="sec-1-1"><span class="section-number-3">1.1</span> Synthetic Dataset Generation</h3>
+<div class="outline-text-3" id="text-1-1">
+
+<p>I used this code:
+</p>
+
+
+<pre class="example">def generateDataset(N, f, sigma):
+    """
+    The function generateDataset(N, f, sigma) should return a tuple
+    with the 2 vectors x and t. for example:
+
+        ti = y(xi) + Normal(mu, sigma)
+        # where the xi values are equi-distant on the [0,1] segment (that
+        is, x1 = 0, x2=1/N-1, x3=2/N-1..., xN = 1.0)
+        mu = 0.0
+        sigma = 0.03
+        y(x) = sin(x)
+    """
+    import numpy as np
+    vf = np.vectorize(lambda x: f(x) + np.random.normal(0, sigma))
+    x = np.linspace(0,1,N)
+    return (x, vf(x))
+</pre>
+
+
+
+<pre class="example"># generating the scatter plot for generateDataset(50,sin,0.03):
+from numpy import sin
+data = generateDataset(50,sin,0.03)
+scatter(data[0],data[1], marker='+', facecolor='g')
+grid()
+box(False)
+title("generateDataset(50, sin, 0.03)")
+savefig("images/generateDataset(50,sin,0.03).png", dpi=(200))
+pylab.close('all')          # close the fig
+</pre>
+
+
+
+<p>
+And got this scatter plot (Figure 1):
+</p>
+<div class="figure">
+<p><img src="images/generateDataset(50,sin,0.03).png" width="950" alt="images/generateDataset(50,sin,0.03).png" /></p>
+<p><b>Figure 1</b></p>
+</div>
+
+</div>
+
+</div>
+
+<div id="outline-container-1-2" class="outline-3">
+<h3 id="sec-1-2"><span class="section-number-3">1.2</span> Polynomial Curve Fitting</h3>
+<div class="outline-text-3" id="text-1-2">
+
+<p>I used
+</p>
+
+
+<pre class="example">def OptimizeLS(x, t, M):
+    import numpy as np
+    phi = np.zeros((len(x), M))
+    # print 'phi.shape={}, N={}, M={}'.format(phi.shape, len(x), M)
+    for n in range(len(x)):
+        for m in range(M):
+            phi[n][m] = x[n] ** m
+    prod = np.dot(phi.T, phi)
+    i = np.linalg.inv(prod)
+    m = np.dot(i, phi.T)
+    w = np.dot(m, t)
+</pre>
+
+
+<p>
+and ran
+</p>
+
+
+<pre class="example"># computing W_{LS}
+import pylab as plt
+
+def y(x, w):
+    return sum(w[i] * (x ** i) for i in range(len(w)))
+
+(xs, ts) = generateDataset(10, sin, 0.03)
+plt.scatter(xs, ts, marker='+', facecolor='g')
+plt.plot(xs, sin(xs), label='$\sin$', linewidth=2)
+
+for M in [1,3,5,10]:
+    w = OptimizeLS(xs, ts, M)
+    vy = np.vectorize(lambda x: y(x, w))
+    plt.plot(xs, vy(xs), label='$M={}$'.format(M))
+
+grid(True)
+box(False)
+legend(loc=0)
+title("10 points with $\sigma=0.03$")
+show()
+savefig("images/Q1.2_sigma=0.03.png", dpi=(200))
+pylab.close('all')          # close the fig
+</pre>
+
+
+<p>
+to get Figure 2
+</p>
+
+<div class="figure">
+<p><img src="images/Q1.2_sigma=0.03.png" width="950" alt="images/Q1.2_sigma=0.03.png" /></p>
+<p><b>Figure 2</b></p>
+</div>
+
+
+<p>
+but this seemed a bit to small of an error, so I also ran:
+</p>
+
+
+<pre class="example"># sigma = 0.1
+(xs, ts) = generateDataset(10, sin, 0.1)
+plt.scatter(xs, ts, marker='+', facecolor='g')
+plt.plot(xs, sin(xs), label='$\sin$', linewidth=2)
+
+for M in [1,3,5,10]:
+    w = OptimizeLS(xs, ts, M)
+    vy = np.vectorize(lambda x: y(x, w))
+    plt.plot(xs, vy(xs), label='$M={}$'.format(M))
+
+grid(True)
+box(False)
+legend(loc=0)
+title("10 points with $\sigma=0.1$")
+show()
+savefig("images/Q1.2_sigma=0.1.png", dpi=(200))
+pylab.close('all')          # close the fig
+</pre>
+
+
+<p>
+to get Figure 3:
+</p>
+
+<div class="figure">
+<p><img src="images/Q1.2_sigma=0.1.png" width="950" alt="images/Q1.2_sigma=0.1.png" /></p>
+<p><b>Figure 3</b></p>
+</div>
+
+<p>
+Which I feel makes the point of over-fitting more obvious. 
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-1-3" class="outline-3">
+<h3 id="sec-1-3"><span class="section-number-3">1.3</span> Polynomial Curve Fitting with Regularization</h3>
+<div class="outline-text-3" id="text-1-3">
+
+<p>Using the standard penalty function:
+</p>
+
+
+\begin{equation}
+E_{W}(w) = \frac{1}{2} W^{T}\cdot W = \frac{1}{2} \sum_{m=1}^{M}W_{m}^{2}
+\end{equation}
+
+<p>
+and the given solution to the penalized least-squares problem:
+\begin{equation}
+W_{PLS} = (\Phi^{T}\Phi + \lambda \mathrm{I})^{-1}\Phi^{T}t
+\end{equation}
+
+I wrote:
+</p>
+
+
+<pre class="example">
+def optimizePLS(x, t, M, lamb): # 'lambda' is reserved
+    """
+    returns the optimal parameters W_{PLS} given M and lambda
+    """
+    import numpy as np
+    phi = np.zeros((len(x), M))
+    for n in range(len(x)):
+        for m in range(M):
+            phi[n][m] = x[n] ** m
+    prod = np.dot(phi.T, phi)
+    I = np.eye(prod.shape[1]) * lamb
+    i = np.linalg.inv(prod + I)
+    m = np.dot(i, phi.T)
+    W_pls = np.dot(m, t)
+</pre>
+
+
+<p>
+To generate the 3 slices of the data set:
+</p>
+
+
+<pre class="example">
+def generateDataset3(N, f, sigma):
+    """
+    returns 3 pairs of vectors of size N each, (x_test, t_test),
+    (x_validate, t_validate) and (x_train, t_train). The target values
+    are generated as above with Gaussian noise N(0, sigma). 
+    """
+    import numpy as np
+
+    vf = np.vectorize(lambda x: f(x) + np.random.normal(0, sigma))
+    x = np.linspace(0, 1, 3 * N)
+    np.random.shuffle(x)
+</pre>
+
+
+<p>
+To get the error term for given \(x_{i}\), \(t_{i}\) \(M\) and the
+normalized error function, for the training and other sets:
+</p>
+<ul>
+<li id="sec-1-3-1">N=10<br/>
+
+
+
+
+<pre class="example">N = 10
+sigma = 0.1
+((xt, tt), (xv, tv), (x_tst, t_tst)) = generateDataset3(N, sin, sigma)
+
+lamb_space = np.linspace(-20,5,100) #  100, 1000
+errs = {}
+
+for M in [1, 3, 5, 10]:
+    errs[M] = {'train': [], 'validate' : [], 'test' : []}
+    for log_lambda in lamb_space:
+        lamb = np.e ** log_lambda
+        W_pls = optimizePLS(xt, tt, M, lamb)
+        errs[M]['train'].append(normalized_errs(W_pls, xt, tt))
+        errs[M]['validate'].append(normalized_errs(W_pls, xv, tv))
+        errs[M]['test'].append(normalized_errs(W_pls, x_tst, t_tst))
+    for grp in ['train', 'validate', 'test']:
+        plot(lamb_space, errs[M][grp], label='$M={}$ {}'.format(M, grp))
+    title("Normalized Errors, M={} N={}".format(M, N))
+    xlabel('$\log(\lambda)$')
+    # xscale('log')
+    grid(True)
+    box(False)
+    legend(loc=0)
+    savefig("images/Q1.3_M={}_N={}_sigma=0.1.png".format(M, N), dpi=(200))
+    pylab.close('all')          # close the fig
+</pre>
+
+<p>
+Producing:
+</p>
+<p>
+<img src="images/Q1.3_M=1_N=10_sigma=0.1.png" width="950" alt="images/Q1.3_M=1_N=10_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=3_N=10_sigma=0.1.png" width="950" alt="images/Q1.3_M=3_N=10_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=5_N=10_sigma=0.1.png" width="950" alt="images/Q1.3_M=5_N=10_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=10_N=10_sigma=0.1.png" width="950" alt="images/Q1.3_M=10_N=10_sigma=0.1.png" />
+</p>
+
+</li>
+</ul>
+<ul>
+<li id="sec-1-3-2">N=100<br/>
+
+
+
+
+<pre class="example">N = 100
+sigma = 0.1
+((xt, tt), (xv, tv), (x_tst, t_tst)) = generateDataset3(N, sin, sigma)
+
+lamb_space = np.linspace(-20,5,100) #  100, 1000
+errs = {}
+
+for M in [1, 3, 5, 10, 20, 40, 60, 80, 100]:
+    errs[M] = {'train': [], 'validate' : [], 'test' : []}
+    for log_lambda in lamb_space:
+        lamb = np.e ** log_lambda
+        W_pls = optimizePLS(xt, tt, M, lamb)
+        errs[M]['train'].append(normalized_errs(W_pls, xt, tt))
+        errs[M]['validate'].append(normalized_errs(W_pls, xv, tv))
+        errs[M]['test'].append(normalized_errs(W_pls, x_tst, t_tst))
+    for grp in ['train', 'validate', 'test']:
+        plot(lamb_space, errs[M][grp],
+             label='$M={}$ {}'.format(M, grp))
+    title("Normalized Errors, M={} N={}".format(M, N))
+    xlabel('$\log(\lambda)$')
+    # xscale('log')
+    grid(True)
+    box(False)
+    legend(loc=0)
+    savefig("images/Q1.3_M={}_N={}_sigma=0.1.png".format(M, N),
+            dpi=(200))
+    pylab.close('all')          # close the fig
+
+# Q1.4 N=10
+x10, t10 = generateDataset(10, sin, 0.03)
+m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
+subplot(111)
+</pre>
+
+
+<p>
+<img src="images/Q1.3_M=1_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=1_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=3_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=3_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=5_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=5_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=10_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=10_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=20_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=20_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=40_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=40_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=60_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=60_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=80_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=80_N=100_sigma=0.1.png" />
+</p>
+<p>
+<img src="images/Q1.3_M=100_N=100_sigma=0.1.png" width="950" alt="images/Q1.3_M=100_N=100_sigma=0.1.png" />
+</p>
+<p>
+My conclusion is that (as pointed out in class) choosing the \(\lambda\)
+value that minimizes the error on the validation set, is a good
+heuristic to the value that will minimize the test set. Therefore, I
+wrote <code>LoptimizePLS(xt, tt, xv, tv, M)</code> such that it will choose the
+\(\lambda\) that has the minimal error on the validate set.
+It's also worth mentioning that a \(\lambda\) value greater than 1 is
+not very helpful.
+</p>
+
+
+
+<pre class="example">
+def LoptimizePLS(xt, tt, xv, tv, M):
+    """
+    selects the best value lambda given a dataset for training (xt, tt)
+    and a validation test (xv, tv).
+    """
+    import numpy as np
+    lamb_space = np.linspace(-20,5,100) #  100, 1000
+    min_err = np.inf
+    best_lambda = -1
+    for log_lambda in lamb_space:
+        lamb = np.e ** log_lambda
+        W_pls = optimizePLS(xt, tt, M, lamb)
+        tmp = normalized_errs(W_pls, xv, tv)
+        if tmp &lt; min_err:
+            min_err = tmp
+            best_lambda = lamb
+</pre>
+
+
+</li>
+</ul>
+</div>
+
+</div>
+
+<div id="outline-container-1-4" class="outline-3">
+<h3 id="sec-1-4"><span class="section-number-3">1.4</span> Probabilistic Regression Framework</h3>
+<div class="outline-text-3" id="text-1-4">
+
+
+<p>
+To return the following equations:
+</p>
+
+
+\begin{equation}
+m(x) = \frac{1}{\sigma^{2}} \Phi(x)^{T} S \sum_{n=1}^{N}\Phi(x_{n}) t_{n}
+\end{equation}
+
+\begin{equation}
+var(x) = S^{2}(x) = \sigma^{2} + \Phi(x)^{T} S \Phi(x)
+\end{equation}
+
+\begin{equation}
+S^{-1} = \alpha I + \frac{1}{\sigma^{2}}
+\sum_{n=1}^{N}\Phi(x_{n})\Phi(x_{n})^{T} 
+\end{equation}
+
+<p>
+The implementation is:
+</p>
+
+
+<pre class="example">
+def bayesianEstimator(x, t, M, alpha, sigma2):
+    """
+    Given the dataset (x, t) of size N, and the parameters M,
+    alpha, and sigma^2 (the variance), returns a tuple of 2 functions
+    (m(x), var(x)) which are the mean and variance of the predictive
+    distribution inferred from the dataset, based on the parameters
+    and the normal prior over w. 
+    """
+    import numpy as np
+    N = len(x)
+    def phi(xx):
+        return np.array([(xx ** i) for i in range(M+1)])
+
+    # compute S from inv(S)
+    aI = alpha * np.eye(M+1)
+    S = np.zeros((M+1, M+1))
+    for i in range(N):
+        phi_xi = phi(x[i])
+        S += np.outer(phi_xi, phi_xi.T)
+    S = np.linalg.inv(aI + (S / sigma2))
+
+</pre>
+
+
+<p>
+running:
+</p>
+
+
+<pre class="example"># Q1.4 N=10
+x10, t10 = generateDataset(10, sin, 0.03)
+m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
+subplot(111)
+upperBound = np.vectorize(lambda x: m(x) + np.sqrt(s2(x)))
+lowerBound = np.vectorize(lambda x: m(x) - np.sqrt(s2(x)))
+fill_between(x10, upperBound(x10), lowerBound(x10), alpha=0.3, color='r')
+scatter(x10, t10, edgecolor='b', facecolor='none', marker='o', s=60, lw=2)
+plot(x10, m(x10), label='$m(x)$', lw=2, color='g')
+plot(x10, sin(x10), label='$\sin(x)$', lw=2, color='r')
+title('$N=10$')
+xlabel('$x$')
+ylabel('$t$')
+legend(loc=2)
+savefig('images/bishop_N=10_sin(x)', dpi=(200))
+</pre>
+
+<p>
+resulted in Figure 4:
+</p>
+<div class="figure">
+<p><img src="images/bishop_N=10_sin(x).png" width="950" alt="images/bishop_N=10_sin(x).png" /></p>
+<p><b>Figure 4</b></p>
+</div>
+
+<p>
+and for \(N=100\):
+</p>
+
+
+<pre class="example"># Q1.4 N=10
+x10, t10 = generateDataset(10, sin, 0.03)
+m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
+subplot(111)
+upperBound = np.vectorize(lambda x: m(x) + np.sqrt(s2(x)))
+lowerBound = np.vectorize(lambda x: m(x) - np.sqrt(s2(x)))
+fill_between(x10, upperBound(x10), lowerBound(x10), alpha=0.3, color='r')
+scatter(x10, t10, edgecolor='b', facecolor='none', marker='o', s=60, lw=2)
+plot(x10, m(x10), label='$m(x)$', lw=2, color='g')
+plot(x10, sin(x10), label='$\sin(x)$', lw=2, color='r')
+title('$N=10$')
+xlabel('$x$')
+ylabel('$t$')
+legend(loc=2)
+savefig('images/bishop_N=10_sin(x)', dpi=(200))
+</pre>
+
+<p>
+resulted in Figure 5:
+</p>
+<div class="figure">
+<p><img src="images/bishop_N=100_sin(x).png" width="950" alt="images/bishop_N=100_sin(x).png" /></p>
+<p><b>Figure 5</b></p>
+</div>
+
+<p>
+<b>BUT</b> Bishop used \(sin(2 \pi x)\) which looks nicer, so I tried that
+ too:
+</p>
+
+
+<pre class="example"># Q1.4 N=10 sin(2*pi*x)
+x10, t10 = generateDataset(10, lambda x: sin(2*np.pi*x), 0.03)
+x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03) # just for result - NOT estimate (smoother graphs)
+
+m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
+subplot(111)
+upperBound = np.vectorize(lambda x: m(x) + np.sqrt(s2(x)))
+lowerBound = np.vectorize(lambda x: m(x) - np.sqrt(s2(x)))
+fill_between(x100, upperBound(x100), lowerBound(x100), alpha=0.8, color='pink')
+scatter(x10, t10, edgecolor='b', facecolor='none', marker='o', s=60, lw=2)
+plot(x100, m(x100), label='$m(x)$', lw=2, color='#5DFC0A')
+plot(x100, sin(2*np.pi*x100), label='$\sin(2 \pi x)$', lw=2, color='r')
+title('$N=10,\; sin(2 \pi x)$')
+xlabel('$x$')
+ylabel('$t$')
+legend(loc=0)
+savefig('images/bishop_N=10_sin(2*pi*x)', dpi=(200))
+pylab.close('all')          # close the fig
+
+
+# Q1.4 N=100
+x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03)
+m, s2 = bayesianEstimator(x100, t100, M=9, alpha=0.005, sigma2=1/11.1)
+subplot(111)
+upperBound = np.vectorize(lambda x: m(x) + np.sqrt(s2(x)))
+lowerBound = np.vectorize(lambda x: m(x) - np.sqrt(s2(x)))
+fill_between(x100, upperBound(x100), lowerBound(x100), alpha=0.5, color='pink')
+scatter(x100, t100, edgecolor='b', facecolor='none', marker='o', s=60, lw=2, alpha=0.7)
+plot(x100, m(x100), label='$m(x)$', lw=2, color='#5DFC0A')
+plot(x100, sin(2*np.pi*x100), label='$\sin(2 \pi x)$', lw=2, color='r')
+title('$N=100,\; sin(2 \pi x)$')
+xlabel('$x$')
+ylabel('$t$')
+legend(loc=0)
+savefig('images/bishop_N=100_sin(2*pi*x)', dpi=(200))
+pylab.close('all')          # close the fig
+</pre>
+
+
+
+<div class="figure">
+<p><img src="images/bishop_N=10_sin(2*pi*x).png" width="950" alt="images/bishop_N=10_sin(2*pi*x).png" /></p>
+<p><b>Figure 6</b></p>
+</div>
+
+
+<div class="figure">
+<p><img src="images/bishop_N=100_sin(2*pi*x).png" width="950" alt="images/bishop_N=100_sin(2*pi*x).png" /></p>
+<p><b>Figure 7</b></p>
+</div>
+
+<p>
+We should notice that in contrast to bishop (see below), in our graph, the
+\(\sigma^{2}\) values visibly decrease on 'linear' parts of the
+sinusoidal, and increase on 'curved' ones.
+</p>
+<p>
+<img src="http://www.cs.bgu.ac.il/~elhadad/nlp12/prmlfigs-png/Figure1.17.png" width="650" ALIGN="CENTER" alt="http://www.cs.bgu.ac.il/~elhadad/nlp12/prmlfigs-png/Figure1.17.png" />
+</p>
+<div id="footnotes">
+<h2 class="footnotes">Footnotes: </h2>
+<div id="text-footnotes">
+<p class="footnote"><sup><a class="footnum" name="fn.1" href="#fnr.1">1</a></sup> Fernando Pérez, Brian E. Granger, IPython: A System for
+  Interactive Scientific Computing, Computing in Science and
+  Engineering, vol. 9, no. 3, pp. 21-29, May/June 2007,
+  <i>&lt;doi:10.1109/MCSE.2007.53&gt;</i>. URL: <a href="http://ipython.org">http://ipython.org</a>
+</p>
+
+
+</div>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+
+<div id="postamble">
+<p class="date">Date: 2012-05-25</p>
+<p class="author">Author: Aviad Reich, ID 052978509</p>
+<p class="creator">Org version 7.8.09 with Emacs version 24</p>
+<a href="http://validator.w3.org/check?uri=referer">Validate XHTML 1.0</a>
+
+</div>
+</body>
+</html>

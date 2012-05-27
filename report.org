@@ -1,0 +1,223 @@
+#+TITLE:     NLP12 Assignment 2: Bayesian Curve Fitting, Classification
+#+AUTHOR:    Aviad Reich, ID 052978509
+#+EMAIL:     avi.rei@gmail.com
+#+DATE:      <2012-05-25 Fri>
+#+DESCRIPTION:
+#+KEYWORDS:
+#+LANGUAGE:  en
+#+OPTIONS:   H:2 num:t toc:1-3 \n:nil @:t ::t |:t ^:t -:t f:t *:t <:th
+#+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:nil pri:nil tags:not-in-toc
+#+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
+#+EXPORT_SELECT_TAGS: export
+#+EXPORT_EXCLUDE_TAGS: noexport
+#+LINK_UP:   
+#+LINK_HOME: 
+#+XSLT:
+#+STYLE: <link rel="stylesheet" type="text/css" href="nlp.css" media="all" />
+
+
+*NOTES:* 
+1) The script for running the code as done by me in preparing this
+   assignment, is written to be used in [[http://ipython.org][IPython]] [fn:1]. A detailed
+   session (with outputs as well, is given in [[file:code/session.ipy][session.ipy]])
+2) This document has some equations that require javascript to run,
+   and an internet connection (to http://orgmode.org/ for the functions).
+
+* Polynomial Curve Fitting
+  
+** Synthetic Dataset Generation
+I used this code:
+#+INCLUDE "code/hw2.py" src python :lines "1-17"
+
+#+INCLUDE "code/session.ipy" src python :lines "5-14"
+
+
+And got this scatter plot (Figure 1):
+#+CAPTION: *Figure 1*
+#+ATTR_HTML: width="950"
+[[file:images/generateDataset(50,sin,0.03).png]]
+
+** Polynomial Curve Fitting
+I used
+#+INCLUDE "code/hw2.py" src python :lines "19-30"
+
+and ran
+#+INCLUDE "code/session.ipy" src python :lines "16-38"
+
+to get Figure 2
+
+#+CAPTION: *Figure 2*
+#+ATTR_HTML: width="950"
+[[file:images/Q1.2_sigma=0.03.png]]
+
+
+but this seemed a bit to small of an error, so I also ran:
+#+INCLUDE "code/session.ipy" src python :lines "39-56"
+
+to get Figure 3:
+
+#+CAPTION: *Figure 3*
+#+ATTR_HTML: width="950"
+[[file:images/Q1.2_sigma=0.1.png]]
+
+Which I feel makes the point of over-fitting more obvious. 
+
+** Polynomial Curve Fitting with Regularization
+Using the standard penalty function:
+
+\begin{equation}
+E_{W}(w) = \frac{1}{2} W^{T}\cdot W = \frac{1}{2} \sum_{m=1}^{M}W_{m}^{2}
+\end{equation}
+
+and the given solution to the penalized least-squares problem:
+\begin{equation}
+W_{PLS} = (\Phi^{T}\Phi + \lambda \mathrm{I})^{-1}\Phi^{T}t
+\end{equation}
+
+I wrote:
+#+INCLUDE "code/hw2.py" src python :lines "31-46"
+
+To generate the 3 slices of the data set:
+#+INCLUDE "code/hw2.py" src python :lines "47-59"
+
+To get the error term for given $x_{i}$, $t_{i}$ $M$ and the
+normalized error function, for the training and other sets:
+
+*** N=10
+    
+#+INCLUDE "code/session.ipy" src python :lines "57-82"
+Producing:
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=1_N=10_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=3_N=10_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=5_N=10_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=10_N=10_sigma=0.1.png]]
+
+
+*** N=100
+    
+#+INCLUDE "code/session.ipy" src python :lines "84-116"
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=1_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=3_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=5_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=10_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=20_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=40_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=60_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=80_N=100_sigma=0.1.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/Q1.3_M=100_N=100_sigma=0.1.png]]
+
+My conclusion is that (as pointed out in class) choosing the $\lambda$
+value that minimizes the error on the validation set, is a good
+heuristic to the value that will minimize the test set. Therefore, I
+wrote =LoptimizePLS(xt, tt, xv, tv, M)= such that it will choose the
+$\lambda$ that has the minimal error on the validate set.
+It's also worth mentioning that a $\lambda$ value greater than 1 is
+not very helpful.
+
+#+INCLUDE "code/hw2.py" src python :lines "87-104"
+
+** Probabilistic Regression Framework
+
+To return the following equations:
+
+\begin{equation}
+m(x) = \frac{1}{\sigma^{2}} \Phi(x)^{T} S \sum_{n=1}^{N}\Phi(x_{n}) t_{n}
+\end{equation}
+
+\begin{equation}
+var(x) = S^{2}(x) = \sigma^{2} + \Phi(x)^{T} S \Phi(x)
+\end{equation}
+
+\begin{equation}
+S^{-1} = \alpha I + \frac{1}{\sigma^{2}}
+\sum_{n=1}^{N}\Phi(x_{n})\Phi(x_{n})^{T} 
+\end{equation}
+
+The implementation is:
+#+INCLUDE "code/hw2.py" src python :lines "106-128"
+
+running:
+#+INCLUDE "code/session.ipy" src python :lines "112-127"
+resulted in Figure 4:
+#+CAPTION: *Figure 4*
+#+ATTR_HTML: width="950"
+[[file:images/bishop_N=10_sin(x).png]]
+
+and for $N=100$:
+#+INCLUDE "code/session.ipy" src python :lines "112-127"
+resulted in Figure 5:
+#+CAPTION: *Figure 5*
+#+ATTR_HTML: width="950"
+[[file:images/bishop_N=100_sin(x).png]]
+
+*BUT* Bishop used $sin(2 \pi x)$ which looks nicer, so I tried that
+ too:
+#+INCLUDE "code/session.ipy" src python :lines "147-183"
+ 
+#+CAPTION: *Figure 6*
+#+ATTR_HTML: width="950"
+[[file:images/bishop_N=10_sin(2*pi*x).png]]
+
+#+CAPTION: *Figure 7*
+#+ATTR_HTML: width="950"
+ [[file:images/bishop_N=100_sin(2*pi*x).png]]
+
+We should notice that in contrast to bishop (see below), in our graph, the
+$\sigma^{2}$ values visibly decrease on 'linear' parts of the
+sinusoidal, and increase on 'curved' ones.
+
+#+ATTR_HTML: width="650"
+[[http://www.cs.bgu.ac.il/~elhadad/nlp12/prmlfigs-png/Figure1.17.png]]
+
+* Footnotes
+
+[fn:1] Fernando Pérez, Brian E. Granger, IPython: A System for
+  Interactive Scientific Computing, Computing in Science and
+  Engineering, vol. 9, no. 3, pp. 21-29, May/June 2007,
+  doi:10.1109/MCSE.2007.53. URL: http://ipython.org 
+
+
+
+
+#+BEGIN_HTML
+<p>
+<a href="http://validator.w3.org/check?uri=referer"><img
+src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a>
+</p>
+#+END_HTML
+
+
+
+
+
+
+
+
+
+
