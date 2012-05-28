@@ -138,4 +138,87 @@ def bayesianEstimator(x, t, M, alpha, sigma2):
         
     return (m, s2)
 
+def stratifiedSamples(reviews, N=10):
+    """
+    adapted from hw1. return a tuple (training, test)
+    """
+    from numpy.random import shuffle # and it's O(n), knuth...
+    training = []
+    test = []
+    frac = 1.0 / N
+    short = []
+    med = []
+    lng = []
+        
+    for review in reviews:
+        r_len = len(review)
+        if r_len <= 27:
+            short.append(review)
+        elif r_len <= 40:
+            med.append(review)
+        else:
+            lng.append(review)
 
+    shuffle(short)
+    shuffle(med)
+    shuffle(lng)
+
+    for arr in (short, med, lng):
+        cut = int(len(arr) * frac)
+        test.extend(arr[:cut])
+        training.extend(arr[cut:])
+
+    return training, test
+    
+def word_feats(words):
+    return dict([(word, True) for word in words])
+
+def bag_of_words(document):
+    from itertools import chain
+    words = chain.from_iterable(document)
+    return word_feats(words)
+
+def evaluate_features(feature_extractor, N):
+    from nltk.corpus import movie_reviews
+    from nltk.classify import NaiveBayesClassifier as naive
+    from nltk.classify.util import accuracy
+    from nltk.metrics import precision, recall, f_measure
+    
+    negative = movie_reviews.fileids('neg')
+    positive = movie_reviews.fileids('pos')
+    negfeats = [(feature_extractor(movie_reviews.sents(fileids=[f])),
+                 'neg') for f in negative]
+
+    posfeats = [(feature_extractor(movie_reviews.sents(fileids=[f])),
+                 'pos') for f in positive]
+
+    negtrain, negtest = stratifiedSamples(negfeats, N)
+    postrain, postest = stratifiedSamples(posfeats, N)
+
+    trainfeats = negtrain + postrain
+    testfeats = negtest + postest
+    classifier = naive.train(trainfeats)
+
+    print 'accuracy: {}'.format(accuracy(classifier, testfeats))
+
+    # Precision, Recall, F-measure
+    from collections import defaultdict
+    refsets = defaultdict(set)
+    testsets = defaultdict(set)
+
+    for i, (feats, label) in enumerate(testfeats):
+        refsets[label].add(i)
+        observed = classifier.classify(feats)
+        testsets[observed].add(i)
+        
+    print 'pos precision:', precision(refsets['pos'], testsets['pos'])
+    print 'pos recall:', recall(refsets['pos'], testsets['pos'])
+    print 'pos F-measure:', f_measure(refsets['pos'], testsets['pos'])
+    print 'neg precision:', precision(refsets['neg'], testsets['neg'])
+    print 'neg recall:', recall(refsets['neg'], testsets['neg'])
+    print 'neg F-measure:', f_measure(refsets['neg'], testsets['neg'])
+    
+    classifier.show_most_informative_features()
+    return classifier
+    
+    

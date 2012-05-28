@@ -3,7 +3,8 @@
 %run code/hw2.py
 
 # generating the scatter plot for generateDataset(50,sin,0.03):
-from numpy import sin
+from numpy import sin; import pylab
+
 data = generateDataset(50,sin,0.03)
 scatter(data[0],data[1], marker='+', facecolor='g')
 grid()
@@ -152,7 +153,7 @@ m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
 subplot(111)
 upperBound = np.vectorize(lambda x: m(x) + np.sqrt(s2(x)))
 lowerBound = np.vectorize(lambda x: m(x) - np.sqrt(s2(x)))
-fill_between(x100, upperBound(x100), lowerBound(x100), alpha=0.8, color='pink')
+fill_between(x100, upperBound(x100), lowerBound(x100), alpha=0.5, color='pink')
 scatter(x10, t10, edgecolor='b', facecolor='none', marker='o', s=60, lw=2)
 plot(x100, m(x100), label='$m(x)$', lw=2, color='#5DFC0A')
 plot(x100, sin(2*np.pi*x100), label='$\sin(2 \pi x)$', lw=2, color='r')
@@ -180,4 +181,127 @@ ylabel('$t$')
 legend(loc=0)
 savefig('images/bishop_N=100_sin(2*pi*x)', dpi=(200))
 pylab.close('all')          # close the fig
+
+## Q2
+from nltk.corpus import movie_reviews
+from itertools import chain
+
+negative = movie_reviews.fileids('neg')
+positive = movie_reviews.fileids('pos')
+
+
+import nltk.classify.NaiveBayesClassifier as naive
+from nltk.classify import NaiveBayesClassifier as naive
+from nltk.classify.util import accuracy
+from nltk.metrics import precision, recall
+
+# first, plot the histograms
+pos_fd = nltk.FreqDist([len(rev) for
+                        rev in [[review for review in
+                                 movie_reviews.sents(fileids=[f])] for
+                                f in positive]])
+
+hist(list(chain.from_iterable([[k]*pos_fd[k] for k in pos_fd.keys()])),
+     bins=(max(pos_fd.keys()) - min(pos_fd.keys()) + 1))
+
+xlabel('review length (sentences)')
+ylabel('number of reviews')
+box('off')
+grid(True)
+title('Length of reviews in positive reviews')
+savefig('images/pos_reviews_length.png', dpi=(200))
+pylab.close('all')          # close the fig
+
+neg_fd = nltk.FreqDist([len(rev) for
+                        rev in [[review for review in
+                                 movie_reviews.sents(fileids=[f])] for
+                                f in negative]])
+
+hist(list(chain.from_iterable([[k]*neg_fd[k] for k in neg_fd.keys()])),
+     bins=(max(neg_fd.keys()) - min(neg_fd.keys()) + 1))
+
+xlabel('review length (sentences)')
+ylabel('number of reviews')
+box('off')
+grid(True)
+title('Length of reviews in negative reviews')
+savefig('images/neg_reviews_length.png', dpi=(200))
+pylab.close('all')          # close the fig
+
+hist(list(chain.from_iterable([[k]*pos_fd[k] for k in pos_fd.keys()])),
+     bins=(max(pos_fd.keys()) - min(pos_fd.keys()) + 1),
+     label='positive')
+hist(list(chain.from_iterable([[k]*neg_fd[k] for k in neg_fd.keys()])),
+     bins=(max(neg_fd.keys()) - min(neg_fd.keys()) + 1),
+     label='negative')
+
+legend(loc=0)
+xlabel('review length (sentences)')
+ylabel('number of reviews')
+box(False)
+grid(True)
+title('Positive vs. Negative histogram')
+savefig('images/pos_vs_neg_reviews_length.png', dpi=(200))
+
+# splitting by length
+# pos_train, pos_test = stratifiedSamples(movie_reviews.sents(fileids=positive))
+
+# neg_train, neg_test = stratifiedSamples(movie_reviews.sents(fileids=negative))
+
+negfeats = [(word_feats(movie_reviews.words(fileids=[f])), 'neg') for
+            f in negative]
+posfeats = [(word_feats(movie_reviews.words(fileids=[f])), 'pos') for
+            f in positive]
+
+shuffle(negfeats)
+shuffle(posfeats)
+trainfeats = negfeats[:900] + posfeats[:900]
+len(trainfeats)                 # 1800
+testfeats = negfeats[900:] + posfeats[900:]
+len(testfeats)                  # 200
+
+classifier = naive.train(trainfeats)
+
+print 'accuracy: {}'.format(accuracy(classifier, testfeats))
+# accuracy: 0.705
+
+# Precision, Recall, F-measure
+from collections import defaultdict
+refsets = defaultdict(set)
+testsets = defaultdict(set)
+ 
+for i, (feats, label) in enumerate(testfeats):
+    refsets[label].add(i)
+    observed = classifier.classify(feats)
+    testsets[observed].add(i)
+ 
+print 'pos precision:', nltk.metrics.precision(refsets['pos'], testsets['pos'])
+print 'pos recall:', nltk.metrics.recall(refsets['pos'], testsets['pos'])
+print 'pos F-measure:', nltk.metrics.f_measure(refsets['pos'], testsets['pos'])
+print 'neg precision:', nltk.metrics.precision(refsets['neg'], testsets['neg'])
+print 'neg recall:', nltk.metrics.recall(refsets['neg'], testsets['neg'])
+print 'neg F-measure:', nltk.metrics.f_measure(refsets['neg'], testsets['neg'])
+
+## OUTPUT
+# pos precision: 0.639455782313
+# pos recall: 0.94
+# pos F-measure: 0.761133603239
+# neg precision: 0.88679245283
+# neg recall: 0.47
+# neg F-measure: 0.614379084967
+
+classifier.show_most_informative_features()
+
+## OUTPUT
+# Most Informative Features
+#   maintains = True              pos : neg    =     14.3 : 1.0
+#      avoids = True              pos : neg    =     13.0 : 1.0
+# outstanding = True              pos : neg    =     12.6 : 1.0
+#    dazzling = True              pos : neg    =     12.3 : 1.0
+#      seagal = True              neg : pos    =     11.7 : 1.0
+#     beliefs = True              pos : neg    =     11.7 : 1.0
+#        slip = True              pos : neg    =     11.7 : 1.0
+#      elliot = True              pos : neg    =     10.3 : 1.0
+#   insulting = True              neg : pos    =      9.8 : 1.0
+#       dread = True              pos : neg    =      9.7 : 1.0
 

@@ -195,6 +195,92 @@ sinusoidal, and increase on 'curved' ones.
 #+ATTR_HTML: width="650"
 [[http://www.cs.bgu.ac.il/~elhadad/nlp12/prmlfigs-png/Figure1.17.png]]
 
+* Classification for Sentiment Analysis
+*I was greatly aided by [[http://streamhacker.com/2010/05/10/text-classification-sentiment-analysis-naive-bayes-classifier/][this]] blog post.*
+
+** Baseline - Bag of words classifier
+
+Initially, I looked at the histograms of the positive and negative
+reviews split by length - in number of sentences.
+
+#+INCLUDE "code/session.ipy" src python :lines "197-244"
+
+#+ATTR_HTML: width="950"
+[[file:images/pos_reviews_length.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/neg_reviews_length.png]]
+
+And now together for comparison:
+
+#+ATTR_HTML: width="950"
+[[file:images/pos_vs_neg_reviews_length.png]]
+
+After being convinced that the two groups are similar, I looked for
+values to split them.
+
+I choose $[1, 27]$, $[28, 40]$ and $[41, \infty)$, since:
+\begin{equation}
+\sum_{i=1}^{\infty} pos\_fd[i] = \sum_{i=1}^{\infty} neg\_fd[i] = 1000 
+\end{equation} 
+
+\begin{equation}
+\sum_{i=1}^{27} pos\_fd[i] = 305 \approx \sum_{i=1}^{27} neg\_fd[i] =
+335 \approx \sum_{i=28}^{40} pos\_fd[i] = 343 \approx \sum_{i=28}^{40}
+neg\_fd[i] = 341 \approx  \frac{1}{3} \cdot 1000
+\end{equation}
+
+
+# Using:
+# #+INCLUDE "code/hw2.py" src python :lines "141-172"
+
+# I created the training and test sets:
+# #+INCLUDE "code/session.ipy" src python :lines "245-249"
+
+
+*1) Construct a stratified split (training, test) dataset of (positive,
+   negative) documents of relative size (N-1)/N and 1/N.*
+#+INCLUDE "code/session.ipy" src python :lines "251-262"
+
+
+*2) Train the Naive Bayes classifier on the training set.*
+#+INCLUDE "code/session.ipy" src python :lines "263-264"
+
+
+*3) Evaluate the learned classifier on the test set and report:*
+   1) Accuracy
+#+INCLUDE "code/session.ipy" src python :lines "265-267"
+
+   2) Positive and Negative Precision, Recall, F-measure
+#+INCLUDE "code/session.ipy" src python :lines "268-284"
+
+resulting in:
+#+INCLUDE "code/session.ipy" src python :lines "285-292"
+
+
+*4) Show the most informative features learned by the classifier (use
+   NaiveBayesClassifier.show\_most\_informative\_features()).*
+#+INCLUDE "code/session.ipy" src python :lines "293-294"
+
+#+INCLUDE "code/session.ipy" src python :lines "295-307"
+
+*5) The function should print the evaluation and return the learned
+   classifier as a value.*
+   
+This is a function doing all that:
+#+INCLUDE "code/hw2.py" src python :lines "181-223"
+
+
+One line in the most\_informative\_features output is worth looking
+at: 
+#+BEGIN_EXAMPLE
+seagal = True              neg : pos    =     11.7 : 1.0
+#+END_EXAMPLE
+
+Judging from the [[https://duckduckgo.com/?q%3Dseagal][DuckDuckGo]] search query on the word "seagal" - this
+most probably refers to actor [[http://stevenseagal.com/][Steven Seagal]], which is a prominent
+feature of negative reviews.. :]
+
 * Footnotes
 
 [fn:1] Fernando Pérez, Brian E. Granger, IPython: A System for
