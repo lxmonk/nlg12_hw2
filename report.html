@@ -164,8 +164,13 @@
 <li><a href="#sec-2">2 Classification for Sentiment Analysis</a>
 <ul>
 <li><a href="#sec-2-1">2.1 Baseline - Bag of words classifier</a></li>
+<li><a href="#sec-2-2">2.2 Data Exploration: Impact of Unknown Words</a></li>
+<li><a href="#sec-2-3">2.3 Improved feature extraction 1: most frequent, stop words</a></li>
+<li><a href="#sec-2-4">2.4 Improved feature extraction 2: exploit part of speech information</a></li>
+<li><a href="#sec-2-5">2.5 Improved feature extraction 3: bigrams</a></li>
 </ul>
 </li>
+<li><a href="#sec-3">3 Thank You :)</a></li>
 </ul>
 </div>
 </div>
@@ -235,7 +240,9 @@ And got this scatter plot (Figure 1):
 <h3 id="sec-1-2"><span class="section-number-3">1.2</span> Polynomial Curve Fitting</h3>
 <div class="outline-text-3" id="text-1-2">
 
-<p>I used
+
+<p>
+I used
 </p>
 
 
@@ -250,6 +257,7 @@ And got this scatter plot (Figure 1):
     i = np.linalg.inv(prod)
     m = np.dot(i, phi.T)
     w = np.dot(m, t)
+    return w
 </pre>
 
 
@@ -330,6 +338,7 @@ to get Figure 3:
 <p>
 Which I feel makes the point of over-fitting more obvious. 
 </p>
+
 </div>
 
 </div>
@@ -371,6 +380,7 @@ def optimizePLS(x, t, M, lamb): # 'lambda' is reserved
     i = np.linalg.inv(prod + I)
     m = np.dot(i, phi.T)
     W_pls = np.dot(m, t)
+    return W_pls
 </pre>
 
 
@@ -391,11 +401,12 @@ def generateDataset3(N, f, sigma):
     vf = np.vectorize(lambda x: f(x) + np.random.normal(0, sigma))
     x = np.linspace(0, 1, 3 * N)
     np.random.shuffle(x)
+    return tuple((xs, vf(xs)) for xs in [x[:N], x[N:2*N], x[2*N:]])
 </pre>
 
 
 <p>
-To get the error term for given \(x_{i}\), \(t_{i}\) \(M\) and the
+To get the error term for a given \(x_{i}\), \(t_{i}\), \(M\) and the
 normalized error function, for the training and other sets:
 </p>
 <ul>
@@ -605,6 +616,18 @@ def bayesianEstimator(x, t, M, alpha, sigma2):
         S += np.outer(phi_xi, phi_xi.T)
     S = np.linalg.inv(aI + (S / sigma2))
 
+    def m(xx):
+        phi_t = phi(xx).T        # vector, transpose is irrlevant
+        sm = np.zeros(M+1)
+        for i in range(N):
+            sm += phi(x[i])*t[i]
+        return (1/sigma2) * np.dot(np.dot(phi_t, S), sm)
+
+    def s2(xx):
+        phi_x = phi(xx)
+        return sigma2 + np.dot(phi_x.T, np.dot(S, phi_x))
+
+    return (m, s2)
 </pre>
 
 
@@ -628,6 +651,8 @@ title('$N=10$')
 xlabel('$x$')
 ylabel('$t$')
 legend(loc=2)
+savefig('images/bishop_N=10_sin(x)', dpi=(200))
+pylab.close('all')          # close the fig
 </pre>
 
 <p>
@@ -643,21 +668,22 @@ and for \(N=100\):
 </p>
 
 
-<pre class="example">
-# Q1.4 N=10
-x10, t10 = generateDataset(10, sin, 0.03)
-m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
+<pre class="example"># Q1.4 N=100
+x100, t100 = generateDataset(100, sin, 0.03)
+m, s2 = bayesianEstimator(x100, t100, M=9, alpha=0.005, sigma2=1/11.1)
 subplot(111)
 upperBound = np.vectorize(lambda x: m(x) + np.sqrt(s2(x)))
 lowerBound = np.vectorize(lambda x: m(x) - np.sqrt(s2(x)))
-fill_between(x10, upperBound(x10), lowerBound(x10), alpha=0.3, color='r')
-scatter(x10, t10, edgecolor='b', facecolor='none', marker='o', s=60, lw=2)
-plot(x10, m(x10), label='$m(x)$', lw=2, color='g')
-plot(x10, sin(x10), label='$\sin(x)$', lw=2, color='r')
-title('$N=10$')
+fill_between(x100, upperBound(x100), lowerBound(x100), alpha=0.3, color='r')
+scatter(x100, t100, edgecolor='b', facecolor='none', marker='o', s=60, lw=2)
+plot(x100, m(x100), label='$m(x)$', lw=2, color='g')
+plot(x100, sin(x100), label='$\sin(x)$', lw=2, color='r')
+title('$N=100$')
 xlabel('$x$')
 ylabel('$t$')
 legend(loc=2)
+savefig('images/bishop_N=100_sin(x)', dpi=(200))
+pylab.close('all')          # close the fig
 </pre>
 
 <p>
@@ -677,7 +703,8 @@ resulted in Figure 5:
 <pre class="example">
 # Q1.4 N=10 sin(2*pi*x)
 x10, t10 = generateDataset(10, lambda x: sin(2*np.pi*x), 0.03)
-x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03) # just for result - NOT estimate (smoother graphs)
+ # just for result - NOT estimate (smoother graphs)
+x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03)
 
 m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
 subplot(111)
@@ -694,7 +721,6 @@ legend(loc=0)
 savefig('images/bishop_N=10_sin(2*pi*x)', dpi=(200))
 pylab.close('all')          # close the fig
 
-
 # Q1.4 N=100
 x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03)
 m, s2 = bayesianEstimator(x100, t100, M=9, alpha=0.005, sigma2=1/11.1)
@@ -710,6 +736,7 @@ xlabel('$x$')
 ylabel('$t$')
 legend(loc=0)
 savefig('images/bishop_N=100_sin(2*pi*x)', dpi=(200))
+pylab.close('all')          # close the fig
 </pre>
 
 
@@ -742,7 +769,9 @@ sinusoidal, and increase on 'curved' ones.
 <h2 id="sec-2"><span class="section-number-2">2</span> Classification for Sentiment Analysis</h2>
 <div class="outline-text-2" id="text-2">
 
-<p>*I was greatly aided by <a href="http://streamhacker.com/2010/05/10/text-classification-sentiment-analysis-naive-bayes-classifier/">this</a> blog post.*
+
+<p>  
+  <b>I was greatly aided by</b> <a href="http://streamhacker.com/2010/05/10/text-classification-sentiment-analysis-naive-bayes-classifier/">this</a> <b>blog post.</b>
 </p>
 
 </div>
@@ -759,7 +788,18 @@ reviews split by length - in number of sentences.
 
 
 
-<pre class="example">
+<pre class="example">## Q2
+from nltk.corpus import movie_reviews
+from itertools import chain
+
+negative = movie_reviews.fileids('neg')
+positive = movie_reviews.fileids('pos')
+
+
+from nltk.classify import NaiveBayesClassifier as naive
+from nltk.classify.util import accuracy
+from nltk.metrics import precision, recall
+
 # first, plot the histograms
 pos_fd = nltk.FreqDist([len(rev) for
                         rev in [[review for review in
@@ -806,6 +846,7 @@ ylabel('number of reviews')
 box(False)
 grid(True)
 title('Positive vs. Negative histogram')
+savefig('images/pos_vs_neg_reviews_length.png', dpi=(200))
 </pre>
 
 
@@ -841,7 +882,7 @@ neg\_fd[i] = 341 \approx  \frac{1}{3} \cdot 1000
 
 
 
-<b>1) Construct a stratified split (training, test) dataset of (positive,    negative) documents of relative size (N-1)/N and 1/N.</b>
+<b>1) Construct a stratified split (training, test) dataset of (positive,    negative) documents of relative size \(\dfrac{N-1}{N}\) and \(\dfrac{1}{N}\).</b>
 </p>
 
 
@@ -859,7 +900,6 @@ len(testfeats)                  # 200
 </pre>
 
 
-
 <p>
 <b>2) Train the Naive Bayes classifier on the training set.</b>
 </p>
@@ -872,10 +912,10 @@ len(testfeats)                  # 200
 
 <p>
 <b>3) Evaluate the learned classifier on the test set and report:</b>
-</p><ol>
+</p><ul>
 <li>Accuracy
 </li>
-</ol>
+</ul>
 
 
 
@@ -885,10 +925,10 @@ len(testfeats)                  # 200
 </pre>
 
 
-<ol>
+<ul>
 <li>Positive and Negative Precision, Recall, F-measure
 </li>
-</ol>
+</ul>
 
 
 
@@ -961,11 +1001,12 @@ This is a function doing all that:
 </p>
 
 
-<pre class="example">def evaluate_features(feature_extractor, N):
+<pre class="example">def evaluate_features(feature_extractor, N, only_acc=False):
     from nltk.corpus import movie_reviews
     from nltk.classify import NaiveBayesClassifier as naive
     from nltk.classify.util import accuracy
     from nltk.metrics import precision, recall, f_measure
+    from sys import stdout
 
     negative = movie_reviews.fileids('neg')
     positive = movie_reviews.fileids('pos')
@@ -974,14 +1015,13 @@ This is a function doing all that:
 
     posfeats = [(feature_extractor(movie_reviews.sents(fileids=[f])),
                  'pos') for f in positive]
-
     negtrain, negtest = stratifiedSamples(negfeats, N)
     postrain, postest = stratifiedSamples(posfeats, N)
 
     trainfeats = negtrain + postrain
     testfeats = negtest + postest
     classifier = naive.train(trainfeats)
-
+    if only_acc: return accuracy(classifier, testfeats)
     print 'accuracy: {}'.format(accuracy(classifier, testfeats))
 
     # Precision, Recall, F-measure
@@ -1000,7 +1040,7 @@ This is a function doing all that:
     print 'neg precision:', precision(refsets['neg'], testsets['neg'])
     print 'neg recall:', recall(refsets['neg'], testsets['neg'])
     print 'neg F-measure:', f_measure(refsets['neg'], testsets['neg'])
-
+    stdout.flush()
     classifier.show_most_informative_features()
     return classifier
 </pre>
@@ -1022,6 +1062,1089 @@ Judging from the <a href="https://duckduckgo.com/?q=seagal">DuckDuckGo</a> searc
 most probably refers to actor <a href="http://stevenseagal.com/">Steven Seagal</a>, which is a prominent
 feature of negative reviews.. :]
 </p>
+
+</div>
+
+</div>
+
+<div id="outline-container-2-2" class="outline-3">
+<h3 id="sec-2-2"><span class="section-number-3">2.2</span> Data Exploration: Impact of Unknown Words</h3>
+<div class="outline-text-3" id="text-2-2">
+
+
+<p>
+Due to the fact that the split to train/test is random, it's
+impossible to create completely balanced bins. Moreover, in an example
+split (figure 8) we can see that the positive and negative test sets
+are not completely similar in distribution.
+</p>
+
+<div class="figure">
+<p><img src="images/new_word_pos_neg_5_bins.png" width="950" alt="images/new_word_pos_neg_5_bins.png" /></p>
+<p><b>Figure 8</b></p>
+</div>
+
+<p>
+<img src="images/new_word_pos_neg_many_bins.png" width="950" alt="images/new_word_pos_neg_many_bins.png" />
+</p>
+<p>
+<img src="images/2hist.png" width="950" alt="images/2hist.png" />
+</p>
+<p>
+To handle this, I decided to use a pre-computed bin distribution (one
+that was the best or close for a few random samplings):
+</p>
+
+
+\begin{equation}
+[0, 254],\: [255, 314],\: [315, 371],\: [372, 443],\: [444, \infty)
+\end{equation}
+
+<p>
+<b>Organize the test dataset as a set of 5 groups according to the rate  of unknown words. Report for each of the 5 groups:</b> 
+</p>
+<p>
+Size of the bin, relative number of positive and negative documents
+Accuracy, positive and negative precision and recall:
+</p>
+
+
+<pre class="example">
+# Q2.2 spliting by unknown word number
+# set of known words:
+trainwords = set()
+
+for rev in postrain + negtrain:
+    featuredict, lab = rev
+    for k in featuredict.iterkeys():
+        trainwords.add(k)
+
+test_known = {'pos' : {}, 'neg' : {}}
+test_known['pos'][1] = []
+test_known['pos'][2] = []
+test_known['pos'][3] = []
+test_known['pos'][4] = []
+test_known['pos'][5] = []
+
+test_known['neg'][1] = []
+test_known['neg'][2] = []
+test_known['neg'][3] = []
+test_known['neg'][4] = []
+test_known['neg'][5] = []
+
+
+for rev in postest:
+    if unknown_words(rev[0].keys(), trainwords) &lt;= 254:
+        test_known['pos'][1].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) &lt;= 314:
+        test_known['pos'][2].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) &lt;= 371:
+        test_known['pos'][3].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) &lt;= 443:
+        test_known['pos'][4].append(rev)
+    else:
+        test_known['pos'][5].append(rev)
+
+for rev in negtest:
+    if unknown_words(rev[0].keys(), trainwords) &lt;= 254:
+        test_known['neg'][1].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) &lt;= 314:
+        test_known['neg'][2].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) &lt;= 371:
+        test_known['neg'][3].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) &lt;= 443:
+        test_known['neg'][4].append(rev)
+    else:
+        test_known['neg'][5].append(rev)
+
+# reporting results:
+# from nltk.classify import NaiveBayesClassifier as naive
+from nltk.classify.util import accuracy
+from nltk.metrics import precision, recall, f_measure
+
+for group in range(1,6):
+    print
+    classifier = naive.train(test_known['pos'][group] +
+                             test_known['neg'][group])
+    for feel in ['pos', 'neg']:
+        print '{} group {}:'.format(feel, group)
+        print '\tsize: {}'.format(len(test_known[feel][group]))
+        if 'neg' in feel:
+            l_pos = float(len(test_known['pos'][group]))
+            l_neg = len(test_known['neg'][group])
+            print 'positive docs are {:.2%} percent of the bin'.format(l_pos / (l_pos + l_neg))
+            print 'accuracy: {}'.format(accuracy(classifier, postest + negtest))
+            from collections import defaultdict
+            refsets = defaultdict(set)
+            testsets = defaultdict(set)
+
+            for i, (feats, label) in enumerate(testfeats):
+                refsets[label].add(i)
+                observed = classifier.classify(feats)
+                testsets[observed].add(i)
+
+            print 'pos precision:', precision(refsets['pos'], testsets['pos'])
+            print 'pos recall:', recall(refsets['pos'], testsets['pos'])
+            print 'pos F-measure:', f_measure(refsets['pos'], testsets['pos'])
+            print 'neg precision:', precision(refsets['neg'], testsets['neg'])
+            print 'neg recall:', recall(refsets['neg'], testsets['neg'])
+</pre>
+
+
+
+<pre class="example">
+## OUTPUT:
+# pos group 1:
+#         size: 100
+# neg group 1:
+#         size: 110
+# positive docs are 47.62% percent of the bin
+# accuracy: 0.805
+# pos precision: 0.681034482759
+# pos recall: 0.79
+# pos F-measure: 0.731481481481
+# neg precision: 0.75
+# neg recall: 0.63
+# neg F-measure: 0.684782608696
+
+# pos group 2:
+#         size: 99
+# neg group 2:
+#         size: 118
+# positive docs are 45.62% percent of the bin
+# accuracy: 0.826
+# pos precision: 0.789473684211
+# pos recall: 0.75
+# pos F-measure: 0.769230769231
+# neg precision: 0.761904761905
+# neg recall: 0.8
+# neg F-measure: 0.780487804878
+
+# pos group 3:
+#         size: 101
+# neg group 3:
+#         size: 114
+# positive docs are 46.98% percent of the bin
+# accuracy: 0.838
+# pos precision: 0.745614035088
+# pos recall: 0.85
+# pos F-measure: 0.794392523364
+# neg precision: 0.825581395349
+# neg recall: 0.71
+# neg F-measure: 0.763440860215
+
+# pos group 4:
+#         size: 101
+# neg group 4:
+#         size: 103
+# positive docs are 49.51% percent of the bin
+# accuracy: 0.807
+# pos precision: 0.8
+# pos recall: 0.8
+# pos F-measure: 0.8
+# neg precision: 0.8
+# neg recall: 0.8
+# neg F-measure: 0.8
+
+# pos group 5:
+#         size: 99
+# neg group 5:
+#         size: 55
+# positive docs are 64.29% percent of the bin
+# accuracy: 0.766
+# pos precision: 0.758241758242
+# pos recall: 0.69
+# pos F-measure: 0.722513089005
+# neg precision: 0.715596330275
+# neg recall: 0.78
+</pre>
+
+
+<p>
+And graphically:
+</p>
+<p>
+<img src="images/Groups.png" width="950" alt="images/Groups.png" />
+</p>
+<p>
+I cannot explain the overall improvement in accuracy, despite the fact
+that less training was done.
+</p>
+</div>
+
+</div>
+
+<div id="outline-container-2-3" class="outline-3">
+<h3 id="sec-2-3"><span class="section-number-3">2.3</span> Improved feature extraction 1: most frequent, stop words</h3>
+<div class="outline-text-3" id="text-2-3">
+
+
+
+<p>   
+I used
+</p>
+
+
+<pre class="example">def make_topK_non_stop_word_extractor(K, stopset):
+    import nltk
+    from nltk.corpus import movie_reviews
+    all_words = movie_reviews.words()
+    unstopabble_words = [word for word in all_words if word not in stopset]
+    all_words_fd = nltk.FreqDist(unstopabble_words)
+    it = all_words_fd.iterkeys()
+    K_words = set([it.next() for iteration in range(K)]) # FreqDist is ordered by frequency..
+    # sanity check:
+    if K == len(K_words):
+        print 'K is OK ;]'
+    else:
+        print 'we got {} instead of {} most frequent words used.'.format(len(K_words), K)
+        return
+
+    def K_non_stop_word_feats(words, K_words, stopset):
+        return dict([(word, True) for word in words if
+                     word in K_words and not word in stopset])
+
+    def K_non_stop_bag_of_words(document):
+        from itertools import chain
+        words = chain.from_iterable(document)
+        return K_non_stop_word_feats(words, K_words, stopset)
+
+    return K_non_stop_bag_of_words
+</pre>
+
+
+<p>
+giving:
+</p>
+
+
+<pre class="example"># Q2.3
+from nltk.corpus import stopwords
+stopset = set(stopwords.words('english'))
+
+extractor = make_topK_non_stop_word_extractor(10000, stopset)
+
+## OUTPUT
+# accuracy: 0.685
+# pos precision: 0.614906832298
+# pos recall: 0.99
+# pos F-measure: 0.758620689655
+# neg precision: 0.974358974359
+# neg recall: 0.38
+# neg F-measure: 0.546762589928
+# Most Informative Features
+#                stupidity = True              neg : pos    =     11.8 : 1.0
+#               astounding = True              pos : neg    =     11.0 : 1.0
+#              outstanding = True              pos : neg    =     11.0 : 1.0
+#                   avoids = True              pos : neg    =     10.3 : 1.0
+#                     slip = True              pos : neg    =     10.3 : 1.0
+#                marvelous = True              pos : neg    =     10.2 : 1.0
+#                insulting = True              neg : pos    =     10.2 : 1.0
+#              fascination = True              pos : neg    =      9.7 : 1.0
+#                      goo = True              neg : pos    =      9.7 : 1.0
+#                   hatred = True              pos : neg    =      9.7 : 1.0
+</pre>
+
+
+
+<p>
+<b>Compare the behavior of this new feature extractor with the baseline  bag of words.</b>
+</p>
+<p>
+accuracy was <b>worse(!)</b>, \(0.685 &lt; 0.705\).
+pos precision was slightly worse, \(0.615 &lt; 0.639\), but pos recall was
+better \((0.99 &gt; 0.94)\). neg precision has also improved \(0.974 &gt;
+0.88\), but recall dropped from \(0.47\) to \(0.38\). As a result,
+F-measure remained almost unchanged for pos (from \(0.76\) to \(0.75\)),
+and dropped from \(0.614\) to \(0.547\) for neg.
+</p>
+<p>
+<b>Try to optimize the value of the parameter K to learn a good  classifier.</b> 
+</p>
+<p>
+<img src="images/k_div_w_accuracy.png"  alt="images/k_div_w_accuracy.png" />
+</p>
+
+</div>
+
+</div>
+
+<div id="outline-container-2-4" class="outline-3">
+<h3 id="sec-2-4"><span class="section-number-3">2.4</span> Improved feature extraction 2: exploit part of speech information</h3>
+<div class="outline-text-3" id="text-2-4">
+
+
+
+<p>
+<b>Try to find optimal tags:</b> 
+</p>
+<p>
+I started by adding all the tags I think are relevant:
+</p>
+
+
+<pre class="example">In [288]: extractor = make_pos_extractor(['ADJ', 'PRO', 'ADV', 'V',
+'VD', 'VG', 'VN', 'N']) 
+
+In [289]: classifier = evaluate_features(extractor, 10)
+accuracy: 0.655
+pos precision: 0.59748427673
+pos recall: 0.95
+pos F-measure: 0.733590733591
+neg precision: 0.878048780488
+neg recall: 0.36
+neg F-measure: 0.510638297872
+Most Informative Features
+                  sloppy = True              neg : pos    =     17.7 : 1.0
+               insulting = True              neg : pos    =     15.7 : 1.0
+                    slip = True              pos : neg    =     11.7 : 1.0
+              astounding = True              pos : neg    =     11.0 : 1.0
+               ludicrous = True              neg : pos    =     10.7 : 1.0
+             fascination = True              pos : neg    =     10.3 : 1.0
+             outstanding = True              pos : neg    =     10.3 : 1.0
+               marvelous = True              pos : neg    =     10.2 : 1.0
+               strengths = True              pos : neg    =      9.7 : 1.0
+                  hatred = True              pos : neg    =      9.7 : 1.0
+
+</pre>
+
+
+<p>
+Which gave \(0.655\) accuracy.
+</p>
+<p>
+since there are only 
+\begin{equation}
+\sum_{i=1}^{8}\binom{8}{i} = 255
+\end{equation}
+options, I decided to brute force it.
+</p>
+
+
+
+<pre class="example">In [335]: from itertools import combinations
+
+In [336]: for i in range(1,8):
+     ...:     print 'i={}'.format(i)
+     ...:     sys.stdout.flush()
+     ...:     for comb in combinations(all_tags, i):
+     ...:         extractor = make_pos_extractor(list(comb))
+     ...:         acc = evaluate_features(extractor, 10, only_acc=True)
+     ...:         print '{}: {}'.format(list(comb), acc)
+     ...:         sys.stdout.flush()
+     ...:         brute[repr(list(comb))] = acc
+i=1
+['ADJ']: 0.7
+['PRO']: 0.625
+['ADV']: 0.68
+['V']: 0.655
+['VD']: 0.59
+['VG']: 0.635
+['VN']: 0.575
+['N']: 0.605
+i=2
+['ADJ', 'PRO']: 0.71
+['ADJ', 'ADV']: 0.69
+['ADJ', 'V']: 0.69
+['ADJ', 'VD']: 0.675
+['ADJ', 'VG']: 0.69
+['ADJ', 'VN']: 0.665
+['ADJ', 'N']: 0.655
+['PRO', 'ADV']: 0.695
+['PRO', 'V']: 0.62
+['PRO', 'VD']: 0.555
+['PRO', 'VG']: 0.585
+['PRO', 'VN']: 0.59
+['PRO', 'N']: 0.68
+['ADV', 'V']: 0.72
+['ADV', 'VD']: 0.7
+['ADV', 'VG']: 0.64
+['ADV', 'VN']: 0.625
+['ADV', 'N']: 0.62
+['V', 'VD']: 0.65
+['V', 'VG']: 0.645
+['V', 'VN']: 0.62
+['V', 'N']: 0.69
+['VD', 'VG']: 0.62
+['VD', 'VN']: 0.605
+['VD', 'N']: 0.65
+['VG', 'VN']: 0.645
+['VG', 'N']: 0.615
+['VN', 'N']: 0.645
+i=3
+['ADJ', 'PRO', 'ADV']: 0.71
+['ADJ', 'PRO', 'V']: 0.725
+['ADJ', 'PRO', 'VD']: 0.7
+['ADJ', 'PRO', 'VG']: 0.7
+['ADJ', 'PRO', 'VN']: 0.755
+['ADJ', 'PRO', 'N']: 0.635
+['ADJ', 'ADV', 'V']: 0.745
+['ADJ', 'ADV', 'VD']: 0.68
+['ADJ', 'ADV', 'VG']: 0.77
+['ADJ', 'ADV', 'VN']: 0.72
+['ADJ', 'ADV', 'N']: 0.64
+['ADJ', 'V', 'VD']: 0.72
+['ADJ', 'V', 'VG']: 0.72
+['ADJ', 'V', 'VN']: 0.735
+['ADJ', 'V', 'N']: 0.64
+['ADJ', 'VD', 'VG']: 0.735
+['ADJ', 'VD', 'VN']: 0.635
+['ADJ', 'VD', 'N']: 0.635
+['ADJ', 'VG', 'VN']: 0.735
+['ADJ', 'VG', 'N']: 0.63
+['ADJ', 'VN', 'N']: 0.645
+['PRO', 'ADV', 'V']: 0.625
+['PRO', 'ADV', 'VD']: 0.72
+['PRO', 'ADV', 'VG']: 0.65
+['PRO', 'ADV', 'VN']: 0.7
+['PRO', 'ADV', 'N']: 0.64
+['PRO', 'V', 'VD']: 0.595
+['PRO', 'V', 'VG']: 0.69
+['PRO', 'V', 'VN']: 0.7
+['PRO', 'V', 'N']: 0.63
+['PRO', 'VD', 'VG']: 0.625
+['PRO', 'VD', 'VN']: 0.615
+['PRO', 'VD', 'N']: 0.655
+['PRO', 'VG', 'VN']: 0.635
+['PRO', 'VG', 'N']: 0.66
+['PRO', 'VN', 'N']: 0.64
+['ADV', 'V', 'VD']: 0.715
+['ADV', 'V', 'VG']: 0.765
+['ADV', 'V', 'VN']: 0.725
+['ADV', 'V', 'N']: 0.675
+['ADV', 'VD', 'VG']: 0.695
+['ADV', 'VD', 'VN']: 0.655
+['ADV', 'VD', 'N']: 0.635
+['ADV', 'VG', 'VN']: 0.685
+['ADV', 'VG', 'N']: 0.67
+['ADV', 'VN', 'N']: 0.65
+['V', 'VD', 'VG']: 0.63
+['V', 'VD', 'VN']: 0.65
+['V', 'VD', 'N']: 0.68
+['V', 'VG', 'VN']: 0.695
+['V', 'VG', 'N']: 0.6
+['V', 'VN', 'N']: 0.625
+['VD', 'VG', 'VN']: 0.675
+['VD', 'VG', 'N']: 0.69
+['VD', 'VN', 'N']: 0.61
+['VG', 'VN', 'N']: 0.685
+i=4
+['ADJ', 'PRO', 'ADV', 'V']: 0.745
+['ADJ', 'PRO', 'ADV', 'VD']: 0.735
+['ADJ', 'PRO', 'ADV', 'VG']: 0.7
+['ADJ', 'PRO', 'ADV', 'VN']: 0.715
+['ADJ', 'PRO', 'ADV', 'N']: 0.605
+['ADJ', 'PRO', 'V', 'VD']: 0.755
+['ADJ', 'PRO', 'V', 'VG']: 0.735
+['ADJ', 'PRO', 'V', 'VN']: 0.67
+['ADJ', 'PRO', 'V', 'N']: 0.7
+['ADJ', 'PRO', 'VD', 'VG']: 0.7
+['ADJ', 'PRO', 'VD', 'VN']: 0.655
+['ADJ', 'PRO', 'VD', 'N']: 0.645
+['ADJ', 'PRO', 'VG', 'VN']: 0.71
+['ADJ', 'PRO', 'VG', 'N']: 0.63
+['ADJ', 'PRO', 'VN', 'N']: 0.595
+['ADJ', 'ADV', 'V', 'VD']: 0.71
+['ADJ', 'ADV', 'V', 'VG']: 0.75
+['ADJ', 'ADV', 'V', 'VN']: 0.745
+['ADJ', 'ADV', 'V', 'N']: 0.645
+['ADJ', 'ADV', 'VD', 'VG']: 0.74
+['ADJ', 'ADV', 'VD', 'VN']: 0.675
+['ADJ', 'ADV', 'VD', 'N']: 0.67
+['ADJ', 'ADV', 'VG', 'VN']: 0.695
+['ADJ', 'ADV', 'VG', 'N']: 0.72
+['ADJ', 'ADV', 'VN', 'N']: 0.645
+['ADJ', 'V', 'VD', 'VG']: 0.765
+['ADJ', 'V', 'VD', 'VN']: 0.685
+['ADJ', 'V', 'VD', 'N']: 0.66
+['ADJ', 'V', 'VG', 'VN']: 0.705
+['ADJ', 'V', 'VG', 'N']: 0.615
+['ADJ', 'V', 'VN', 'N']: 0.64
+['ADJ', 'VD', 'VG', 'VN']: 0.64
+['ADJ', 'VD', 'VG', 'N']: 0.685
+['ADJ', 'VD', 'VN', 'N']: 0.615
+['ADJ', 'VG', 'VN', 'N']: 0.65
+['PRO', 'ADV', 'V', 'VD']: 0.77
+['PRO', 'ADV', 'V', 'VG']: 0.69
+['PRO', 'ADV', 'V', 'VN']: 0.62
+['PRO', 'ADV', 'V', 'N']: 0.68
+['PRO', 'ADV', 'VD', 'VG']: 0.775
+['PRO', 'ADV', 'VD', 'VN']: 0.685
+['PRO', 'ADV', 'VD', 'N']: 0.63
+['PRO', 'ADV', 'VG', 'VN']: 0.66
+['PRO', 'ADV', 'VG', 'N']: 0.63
+['PRO', 'ADV', 'VN', 'N']: 0.59
+['PRO', 'V', 'VD', 'VG']: 0.715
+['PRO', 'V', 'VD', 'VN']: 0.64
+['PRO', 'V', 'VD', 'N']: 0.715
+['PRO', 'V', 'VG', 'VN']: 0.675
+['PRO', 'V', 'VG', 'N']: 0.65
+['PRO', 'V', 'VN', 'N']: 0.615
+['PRO', 'VD', 'VG', 'VN']: 0.68
+['PRO', 'VD', 'VG', 'N']: 0.625
+['PRO', 'VD', 'VN', 'N']: 0.575
+['PRO', 'VG', 'VN', 'N']: 0.615
+['ADV', 'V', 'VD', 'VG']: 0.735
+['ADV', 'V', 'VD', 'VN']: 0.69
+['ADV', 'V', 'VD', 'N']: 0.66
+['ADV', 'V', 'VG', 'VN']: 0.73
+['ADV', 'V', 'VG', 'N']: 0.675
+['ADV', 'V', 'VN', 'N']: 0.605
+['ADV', 'VD', 'VG', 'VN']: 0.67
+['ADV', 'VD', 'VG', 'N']: 0.705
+['ADV', 'VD', 'VN', 'N']: 0.66
+['ADV', 'VG', 'VN', 'N']: 0.685
+['V', 'VD', 'VG', 'VN']: 0.615
+['V', 'VD', 'VG', 'N']: 0.695
+['V', 'VD', 'VN', 'N']: 0.665
+['V', 'VG', 'VN', 'N']: 0.585
+['VD', 'VG', 'VN', 'N']: 0.62
+i=5
+['ADJ', 'PRO', 'ADV', 'V', 'VD']: 0.735
+['ADJ', 'PRO', 'ADV', 'V', 'VG']: 0.69
+['ADJ', 'PRO', 'ADV', 'V', 'VN']: 0.69
+['ADJ', 'PRO', 'ADV', 'V', 'N']: 0.63
+['ADJ', 'PRO', 'ADV', 'VD', 'VG']: 0.715
+['ADJ', 'PRO', 'ADV', 'VD', 'VN']: 0.74
+['ADJ', 'PRO', 'ADV', 'VD', 'N']: 0.71
+['ADJ', 'PRO', 'ADV', 'VG', 'VN']: 0.725
+['ADJ', 'PRO', 'ADV', 'VG', 'N']: 0.675
+['ADJ', 'PRO', 'ADV', 'VN', 'N']: 0.665
+['ADJ', 'PRO', 'V', 'VD', 'VG']: 0.735
+['ADJ', 'PRO', 'V', 'VD', 'VN']: 0.71
+['ADJ', 'PRO', 'V', 'VD', 'N']: 0.71
+['ADJ', 'PRO', 'V', 'VG', 'VN']: 0.73
+['ADJ', 'PRO', 'V', 'VG', 'N']: 0.645
+['ADJ', 'PRO', 'V', 'VN', 'N']: 0.65
+['ADJ', 'PRO', 'VD', 'VG', 'VN']: 0.68
+['ADJ', 'PRO', 'VD', 'VG', 'N']: 0.605
+['ADJ', 'PRO', 'VD', 'VN', 'N']: 0.655
+['ADJ', 'PRO', 'VG', 'VN', 'N']: 0.655
+['ADJ', 'ADV', 'V', 'VD', 'VG']: 0.785
+['ADJ', 'ADV', 'V', 'VD', 'VN']: 0.72
+['ADJ', 'ADV', 'V', 'VD', 'N']: 0.685
+['ADJ', 'ADV', 'V', 'VG', 'VN']: 0.745
+['ADJ', 'ADV', 'V', 'VG', 'N']: 0.705
+['ADJ', 'ADV', 'V', 'VN', 'N']: 0.685
+['ADJ', 'ADV', 'VD', 'VG', 'VN']: 0.7
+['ADJ', 'ADV', 'VD', 'VG', 'N']: 0.65
+['ADJ', 'ADV', 'VD', 'VN', 'N']: 0.675
+['ADJ', 'ADV', 'VG', 'VN', 'N']: 0.675
+['ADJ', 'V', 'VD', 'VG', 'VN']: 0.675
+['ADJ', 'V', 'VD', 'VG', 'N']: 0.665
+['ADJ', 'V', 'VD', 'VN', 'N']: 0.69
+['ADJ', 'V', 'VG', 'VN', 'N']: 0.63
+['ADJ', 'VD', 'VG', 'VN', 'N']: 0.59
+['PRO', 'ADV', 'V', 'VD', 'VG']: 0.71
+['PRO', 'ADV', 'V', 'VD', 'VN']: 0.685
+['PRO', 'ADV', 'V', 'VD', 'N']: 0.69
+['PRO', 'ADV', 'V', 'VG', 'VN']: 0.725
+['PRO', 'ADV', 'V', 'VG', 'N']: 0.68
+['PRO', 'ADV', 'V', 'VN', 'N']: 0.68
+['PRO', 'ADV', 'VD', 'VG', 'VN']: 0.69
+['PRO', 'ADV', 'VD', 'VG', 'N']: 0.685
+['PRO', 'ADV', 'VD', 'VN', 'N']: 0.615
+['PRO', 'ADV', 'VG', 'VN', 'N']: 0.635
+['PRO', 'V', 'VD', 'VG', 'VN']: 0.675
+['PRO', 'V', 'VD', 'VG', 'N']: 0.64
+['PRO', 'V', 'VD', 'VN', 'N']: 0.65
+['PRO', 'V', 'VG', 'VN', 'N']: 0.62
+['PRO', 'VD', 'VG', 'VN', 'N']: 0.625
+['ADV', 'V', 'VD', 'VG', 'VN']: 0.67
+['ADV', 'V', 'VD', 'VG', 'N']: 0.665
+['ADV', 'V', 'VD', 'VN', 'N']: 0.665
+['ADV', 'V', 'VG', 'VN', 'N']: 0.65
+['ADV', 'VD', 'VG', 'VN', 'N']: 0.575
+['V', 'VD', 'VG', 'VN', 'N']: 0.635
+i=6
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VG']: 0.725
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VN']: 0.68
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'N']: 0.665
+['ADJ', 'PRO', 'ADV', 'V', 'VG', 'VN']: 0.715
+['ADJ', 'PRO', 'ADV', 'V', 'VG', 'N']: 0.7
+['ADJ', 'PRO', 'ADV', 'V', 'VN', 'N']: 0.7
+['ADJ', 'PRO', 'ADV', 'VD', 'VG', 'VN']: 0.71
+['ADJ', 'PRO', 'ADV', 'VD', 'VG', 'N']: 0.665
+['ADJ', 'PRO', 'ADV', 'VD', 'VN', 'N']: 0.7
+['ADJ', 'PRO', 'ADV', 'VG', 'VN', 'N']: 0.665
+['ADJ', 'PRO', 'V', 'VD', 'VG', 'VN']: 0.685
+['ADJ', 'PRO', 'V', 'VD', 'VG', 'N']: 0.64
+['ADJ', 'PRO', 'V', 'VD', 'VN', 'N']: 0.67
+['ADJ', 'PRO', 'V', 'VG', 'VN', 'N']: 0.68
+['ADJ', 'PRO', 'VD', 'VG', 'VN', 'N']: 0.62
+['ADJ', 'ADV', 'V', 'VD', 'VG', 'VN']: 0.735
+['ADJ', 'ADV', 'V', 'VD', 'VG', 'N']: 0.655
+['ADJ', 'ADV', 'V', 'VD', 'VN', 'N']: 0.67
+['ADJ', 'ADV', 'V', 'VG', 'VN', 'N']: 0.68
+['ADJ', 'ADV', 'VD', 'VG', 'VN', 'N']: 0.615
+['ADJ', 'V', 'VD', 'VG', 'VN', 'N']: 0.665
+['PRO', 'ADV', 'V', 'VD', 'VG', 'VN']: 0.735
+['PRO', 'ADV', 'V', 'VD', 'VG', 'N']: 0.645
+['PRO', 'ADV', 'V', 'VD', 'VN', 'N']: 0.655
+['PRO', 'ADV', 'V', 'VG', 'VN', 'N']: 0.705
+['PRO', 'ADV', 'VD', 'VG', 'VN', 'N']: 0.695
+['PRO', 'V', 'VD', 'VG', 'VN', 'N']: 0.62
+['ADV', 'V', 'VD', 'VG', 'VN', 'N']: 0.635
+i=7
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VG', 'VN']: 0.665
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VG', 'N']: 0.68
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VN', 'N']: 0.645
+['ADJ', 'PRO', 'ADV', 'V', 'VG', 'VN', 'N']: 0.73
+['ADJ', 'PRO', 'ADV', 'VD', 'VG', 'VN', 'N']: 0.635
+['ADJ', 'PRO', 'V', 'VD', 'VG', 'VN', 'N']: 0.695
+['ADJ', 'ADV', 'V', 'VD', 'VG', 'VN', 'N']: 0.685
+['PRO', 'ADV', 'V', 'VD', 'VG', 'VN', 'N']: 0.68
+
+In [337]: len brute
+Out[337]: 254
+
+In [338]: max(brute.values())
+Out[338]: 0.785
+
+In [339]: dmp = [k for k in brute]
+
+In [340]: dmp[0]
+Out[340]: "['ADV', 'VN', 'N']"
+
+In [341]: [(k, brute[k]) for k in brute if brute[k] &gt;= 0.78]
+Out[341]: [("['ADJ', 'ADV', 'V', 'VD', 'VG']", 0.785)]
+</pre>
+
+
+<p>
+so, the best I could find (simplified tags) is: <b>['ADJ', 'ADV', 'V', 'VD', 'VG']</b>.
+</p>
+
+
+</div>
+
+</div>
+
+<div id="outline-container-2-5" class="outline-3">
+<h3 id="sec-2-5"><span class="section-number-3">2.5</span> Improved feature extraction 3: bigrams</h3>
+<div class="outline-text-3" id="text-2-5">
+
+
+<ul>
+<li id="sec-2-5-1">Baseline<br/>
+
+<p>
+<b>First, let us compare baselines:</b>
+</p>
+
+<p>
+<b>Report on the results for these features for N=4.</b>
+</p>
+<p>
+   <b>The bag of words (unigram) learned above.</b>
+</p>
+
+
+<pre class="example">#Q2.5
+
+# Bag of words    
+In [20]: evaluate_features(bag_of_words, 4)
+
+    accuracy: 0.708
+    pos precision: 0.633333333333
+    pos recall: 0.988
+    pos F-measure: 0.771875
+    neg precision: 0.972727272727
+    neg recall: 0.428
+    neg F-measure: 0.594444444444
+    Most Informative Features
+                    poignant = True              pos : neg    =     15.0 : 1.0
+                   insulting = True              neg : pos    =     14.3 : 1.0
+                      finest = True              pos : neg    =     13.4 : 1.0
+                      avoids = True              pos : neg    =     11.0 : 1.0
+                        3000 = True              neg : pos    =     11.0 : 1.0
+                        lush = True              pos : neg    =     10.3 : 1.0
+                      prinze = True              neg : pos    =     10.3 : 1.0
+                     freddie = True              neg : pos    =     10.3 : 1.0
+                   ludicrous = True              neg : pos    =      9.9 : 1.0
+                      turkey = True              neg : pos    =      9.8 : 1.0
+
+    Out[20]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x4669ef90&gt;           
+</pre>
+
+
+<p>
+    <b>All bigrams (use the nltk.util.bigrams function).</b>
+</p>
+<p>    
+    extractor:
+</p>
+
+
+<pre class="example">def bigram_extractor(document):
+    """
+    simple bigram extractor
+    """
+    from nltk import bigrams
+    return dict([(bigram, True) for sent in document for
+                 bigram in bigrams(sent)])
+</pre>
+
+
+
+<pre class="example"># simple bigram feature extractor
+In [18]: evaluate_features(bigram_extractor, 4)
+
+    accuracy: 0.75
+    pos precision: 0.676056338028
+    pos recall: 0.96
+    pos F-measure: 0.793388429752
+    neg precision: 0.931034482759
+    neg recall: 0.54
+    neg F-measure: 0.683544303797
+    Most Informative Features
+           ('is', 'perfect') = True              pos : neg    =     16.3 : 1.0
+          ('is', 'terrific') = True              pos : neg    =     15.0 : 1.0
+            ('not', 'funny') = True              neg : pos    =     12.3 : 1.0
+             ('waste', 'of') = True              neg : pos    =     11.4 : 1.0
+              ('a', 'place') = True              pos : neg    =     11.0 : 1.0
+       ('the', 'ridiculous') = True              neg : pos    =     11.0 : 1.0
+            ('insult', 'to') = True              neg : pos    =     11.0 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =     11.0 : 1.0
+           ('and', 'boring') = True              neg : pos    =     11.0 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =     10.3 : 1.0
+
+    Out[18]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x47d0f10&gt;
+</pre>
+
+
+<p>    
+    <b>Unigrams and bigrams together</b> 
+</p>
+<p>    
+    extractor:
+</p>
+
+
+<pre class="example">def uni_and_bigram_extractor(document):
+    from nltk import bigrams
+    unis = [(word, True) for sent in document for
+            word in sent]
+    bigs = [(bigram, True) for sent in document for
+            bigram in bigrams(sent)]
+
+    return dict(unis + bigs)  
+</pre>
+
+
+
+
+
+<pre class="example"># unigram and bigram extractor
+In [6]: evaluate_features(uni_and_bigram_extractor, 4); sys.stdout.flush()
+    accuracy: 0.74
+    pos precision: 0.661290322581
+    pos recall: 0.984
+    pos F-measure: 0.790996784566
+    neg precision: 0.96875
+    neg recall: 0.496
+    neg F-measure: 0.656084656085
+    Most Informative Features
+                      forgot = True              neg : pos    =     13.7 : 1.0
+                   marvelous = True              pos : neg    =     13.0 : 1.0
+            ('not', 'funny') = True              neg : pos    =     12.3 : 1.0
+          ('is', 'terrific') = True              pos : neg    =     12.3 : 1.0
+             ('makes', 'no') = True              neg : pos    =     11.7 : 1.0
+           ('and', 'boring') = True              neg : pos    =     11.7 : 1.0
+                       blend = True              pos : neg    =     11.7 : 1.0
+           ('is', 'perfect') = True              pos : neg    =     11.4 : 1.0
+                 outstanding = True              pos : neg    =     11.2 : 1.0
+          ('enjoyable', ',') = True              pos : neg    =     11.0 : 1.0
+</pre>
+
+
+<p>
+    It is obvious from the results that we have a mediocre coverage,
+    since (for example) the bigrams extractor found "is perfect"
+    (16.3 : 1.0), and "is terrific" (15.0 : 1.0), while the unified
+    extractor's best bigram has "not funny" (12.3 : 1.0).
+</p>
+
+</li>
+</ul>
+<ul>
+<li id="sec-2-5-2">Employing the strength metrics:<br/>
+
+<ul>
+<li id="sec-2-5-2-1">At the corpus level (cheating)<br/>
+     code for the extractor:
+
+
+
+
+<pre class="example">def make_strong_bigrams_extractor(train, n):
+
+    def strong_bigrams(words, n):
+        from nltk.collocations import BigramCollocationFinder
+        from nltk.metrics import BigramAssocMeasures
+
+        score = BigramAssocMeasures.chi_sq  # chi square measure of strength
+        bigram_finder = BigramCollocationFinder.from_words(words)
+        bigrams = bigram_finder.nbest(score, n)
+        return bigrams # [bigram for bigram in chain(words, bigrams)]
+
+    strongset = set(strong_bigrams(train, n))
+
+    def strong_extractor(document):
+        from nltk import bigrams
+        return dict([(bigram, True) for sent in document
+                     for bigram in bigrams(sent)
+                     if bigram in strongset])
+
+    return strong_extractor
+</pre>
+
+
+<p>
+     I tried different values for n (n-strongest bigrams) until I felt
+     it had reached a plateau:
+</p>
+
+
+
+<pre class="example"># strong bigrams
+## corpus level:
+In [26]: from nltk.corpus import movie_reviews
+
+In [27]: words = movie_reviews.words()
+
+In [28]: evaluate_features(make_strong_bigrams_extractor(words, 400), 4)
+    accuracy: 0.502
+    pos precision: 0.50103950104
+    pos recall: 0.964
+    pos F-measure: 0.659370725034
+    neg precision: 0.526315789474
+    neg recall: 0.04
+    neg F-measure: 0.0743494423792
+    Most Informative Features
+           ('taye', 'diggs') = True              neg : pos    =      2.3 : 1.0
+        ('alfre', 'woodard') = True              pos : neg    =      1.7 : 1.0
+        ('rya', 'kihlstedt') = True              pos : neg    =      1.7 : 1.0
+        ('blythe', 'danner') = True              neg : pos    =      1.7 : 1.0
+          ('indien', 'dans') = None              pos : neg    =      1.0 : 1.0
+      ('bokeem', 'woodbine') = None              pos : neg    =      1.0 : 1.0
+            ('suzy', 'amis') = None              pos : neg    =      1.0 : 1.0
+        ('mychael', 'danna') = None              neg : pos    =      1.0 : 1.0
+    ('nicoletta', 'braschi') = None              neg : pos    =      1.0 : 1.0
+       ('farrah', 'fawcett') = None              neg : pos    =      1.0 : 1.0
+Out[28]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x223a9d50&gt;
+
+In [29]: evaluate_features(make_strong_bigrams_extractor(words, 1000), 4)
+    accuracy: 0.546
+    pos precision: 0.605504587156
+    pos recall: 0.264
+    pos F-measure: 0.367688022284
+    neg precision: 0.529411764706
+    neg recall: 0.828
+    neg F-measure: 0.645865834633
+    Most Informative Features
+          ('mena', 'suvari') = True              neg : pos    =      5.7 : 1.0
+      ('nigel', 'hawthorne') = True              pos : neg    =      5.0 : 1.0
+        ('ewan', 'mcgregor') = True              pos : neg    =      3.8 : 1.0
+           ('jared', 'leto') = True              neg : pos    =      3.7 : 1.0
+           ('notre', 'dame') = True              pos : neg    =      3.7 : 1.0
+          ('ace', 'ventura') = True              neg : pos    =      3.4 : 1.0
+       ('marilyn', 'manson') = True              neg : pos    =      3.4 : 1.0
+        ('mortal', 'kombat') = True              neg : pos    =      3.4 : 1.0
+      ('natalie', 'portman') = True              pos : neg    =      3.0 : 1.0
+         ('winona', 'ryder') = True              pos : neg    =      3.0 : 1.0
+Out[29]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x2e655d0&gt;
+
+In [30]: evaluate_features(make_strong_bigrams_extractor(words, 10000), 4)
+    accuracy: 0.654
+    pos precision: 0.6463878327
+    pos recall: 0.68
+    pos F-measure: 0.662768031189
+    neg precision: 0.662447257384
+    neg recall: 0.628
+    neg F-measure: 0.64476386037
+    Most Informative Features
+           ('fairy', 'tale') = True              pos : neg    =      9.7 : 1.0
+         ('kevin', 'spacey') = True              pos : neg    =      8.3 : 1.0
+          ('darth', 'vader') = True              pos : neg    =      8.3 : 1.0
+           ('matt', 'damon') = True              pos : neg    =      7.8 : 1.0
+           ('wan', 'kenobi') = True              pos : neg    =      7.7 : 1.0
+          ('taxi', 'driver') = True              pos : neg    =      7.0 : 1.0
+          ('chasing', 'amy') = True              pos : neg    =      7.0 : 1.0
+            ('ed', 'harris') = True              pos : neg    =      7.0 : 1.0
+        ('dennis', 'hopper') = True              neg : pos    =      7.0 : 1.0
+          ('jason', 'biggs') = True              neg : pos    =      6.3 : 1.0
+Out[30]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x223a98d0&gt;
+
+In [31]: evaluate_features(make_strong_bigrams_extractor(words, 60000), 4)
+    accuracy: 0.836
+    pos precision: 0.808823529412
+    pos recall: 0.88
+    pos F-measure: 0.842911877395
+    neg precision: 0.868421052632
+    neg recall: 0.792
+    neg F-measure: 0.828451882845
+    Most Informative Features
+          ('nothing', 'new') = True              neg : pos    =     13.7 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =      9.7 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =      9.7 : 1.0
+    ('matthew', 'mcconaughey') = True              pos : neg    =      9.7 : 1.0
+                ('obi', '-') = True              pos : neg    =      9.0 : 1.0
+         ('very', 'similar') = True              pos : neg    =      9.0 : 1.0
+                ('-', 'wan') = True              pos : neg    =      9.0 : 1.0
+         ('portrayed', 'by') = True              pos : neg    =      8.3 : 1.0
+       ('extremely', 'well') = True              pos : neg    =      8.3 : 1.0
+           ('wan', 'kenobi') = True              pos : neg    =      8.3 : 1.0
+Out[31]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x15f5e5d0&gt;
+
+In [32]: evaluate_features(make_strong_bigrams_extractor(words, 80000), 4)
+    accuracy: 0.804
+    pos precision: 0.755033557047
+    pos recall: 0.9
+    pos F-measure: 0.821167883212
+    neg precision: 0.876237623762
+    neg recall: 0.708
+    neg F-measure: 0.783185840708
+    Most Informative Features
+           ('matt', 'damon') = True              pos : neg    =     13.0 : 1.0
+       ('an', 'outstanding') = True              pos : neg    =     11.0 : 1.0
+              ('-', 'notch') = True              pos : neg    =     10.3 : 1.0
+           ('well', 'worth') = True              pos : neg    =      9.7 : 1.0
+          ('most', 'famous') = True              pos : neg    =      9.7 : 1.0
+            ('insult', 'to') = True              neg : pos    =      9.7 : 1.0
+              ('our', 'own') = True              pos : neg    =      9.7 : 1.0
+              ('&amp;', 'robin') = True              neg : pos    =      9.0 : 1.0
+      ('joel', 'schumacher') = True              neg : pos    =      9.0 : 1.0
+           ('quite', 'well') = True              pos : neg    =      9.0 : 1.0
+Out[32]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x62939c90&gt;
+</pre>
+
+
+
+</li>
+</ul>
+<ul>
+<li id="sec-2-5-2-2">At the review level<br/>
+     code for the extractor:
+
+
+
+
+<pre class="example">def document_strong_extractor(document):
+    from itertools import chain
+    from nltk import bigrams
+
+    def strong_bigrams(words, n):
+        from nltk.collocations import BigramCollocationFinder
+        from nltk.metrics import BigramAssocMeasures
+
+        score = BigramAssocMeasures.chi_sq  # chi square measure of strength
+        bigram_finder = BigramCollocationFinder.from_words(words)
+        bigrams = bigram_finder.nbest(score, n)
+        return bigrams
+
+    strongset = set(strong_bigrams(chain.from_iterable(document), 400))
+
+    return dict([(bigram, True) for sent in document
+                for bigram in bigrams(sent)
+                if bigram in strongset])
+</pre>
+
+
+<p>
+     I tried keeping the strongest 200, 300 and 400 bigrams (plateau),
+     producing: 
+</p>
+
+
+<pre class="example">## document level
+In [7]: evaluate_features(document_strong_extractor, 4) # 200 bigrams
+    accuracy: 0.808
+    pos precision: 0.859813084112
+    pos recall: 0.736
+    pos F-measure: 0.793103448276
+    neg precision: 0.769230769231
+    neg recall: 0.88
+    neg F-measure: 0.820895522388
+    Most Informative Features
+              ('give', 'us') = True              neg : pos    =     12.3 : 1.0
+           ('matt', 'damon') = True              pos : neg    =      9.7 : 1.0
+           ('well', 'worth') = True              pos : neg    =      9.7 : 1.0
+              ('does', 'so') = True              pos : neg    =      9.7 : 1.0
+       ('would', 'probably') = True              neg : pos    =      9.0 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =      8.3 : 1.0
+         ('common', 'sense') = True              neg : pos    =      8.3 : 1.0
+            ('that', 'will') = True              pos : neg    =      8.3 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =      8.3 : 1.0
+              ('&amp;', 'robin') = True              neg : pos    =      8.3 : 1.0
+Out[7]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x3614fd0&gt;
+
+In [9]: evaluate_features(document_strong_extractor, 4) # 300 bigrams
+    accuracy: 0.824
+    pos precision: 0.885714285714
+    pos recall: 0.744
+    pos F-measure: 0.808695652174
+    neg precision: 0.779310344828
+    neg recall: 0.904
+    neg F-measure: 0.837037037037
+    Most Informative Features
+        ('absolutely', 'no') = True              neg : pos    =     12.2 : 1.0
+              ('be', 'fair') = True              neg : pos    =     11.0 : 1.0
+      ('everything', 'from') = True              pos : neg    =     11.0 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =     10.3 : 1.0
+               ('so', 'why') = True              neg : pos    =     10.3 : 1.0
+           ('well', 'worth') = True              pos : neg    =     10.3 : 1.0
+           ('works', 'well') = True              pos : neg    =      9.7 : 1.0
+         ('through', 'this') = True              neg : pos    =      9.7 : 1.0
+              ('why', 'did') = True              neg : pos    =      9.0 : 1.0
+         ('saving', 'grace') = True              neg : pos    =      9.0 : 1.0
+Out[9]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x1efba50&gt;
+
+In [16]: evaluate_features(document_strong_extractor, 4) # 400 bigrams
+    accuracy: 0.83
+    pos precision: 0.894736842105
+    pos recall: 0.748
+    pos F-measure: 0.814814814815
+    neg precision: 0.783505154639
+    neg recall: 0.912
+    neg F-measure: 0.842883548983
+    Most Informative Features
+      ('everything', 'from') = True              pos : neg    =     11.0 : 1.0
+             ('makes', 'no') = True              neg : pos    =     10.3 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =     10.3 : 1.0
+       ('an', 'outstanding') = True              pos : neg    =     10.3 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =      9.7 : 1.0
+      ('performances', 'by') = True              pos : neg    =      9.7 : 1.0
+             ('show', 'off') = True              neg : pos    =      9.7 : 1.0
+          ('should', 'know') = True              neg : pos    =      9.7 : 1.0
+    ('but', 'unfortunately') = True              neg : pos    =      9.0 : 1.0
+           ('well', 'worth') = True              pos : neg    =      9.0 : 1.0
+Out[16]: &lt;nltk.classify.naivebayes.NaiveBayesClassifier at 0x1efb590&gt;
+</pre>
+
+
+<p>
+     This seems to give much better results.
+</p>
+
+
+
+</li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+</div>
+
+<div id="outline-container-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> Thank You :)</h2>
+<div class="outline-text-2" id="text-3">
+
+
+
+
 <div id="footnotes">
 <h2 class="footnotes">Footnotes: </h2>
 <div id="text-footnotes">
@@ -1029,11 +2152,7 @@ feature of negative reviews.. :]
   Interactive Scientific Computing, Computing in Science and
   Engineering, vol. 9, no. 3, pp. 21-29, May/June 2007,
   <i>&lt;doi:10.1109/MCSE.2007.53&gt;</i>. URL: <a href="http://ipython.org">http://ipython.org</a>
-</p>
-
-
-</div>
-</div>
+</p></div>
 </div>
 
 </div>

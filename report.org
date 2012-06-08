@@ -5,7 +5,7 @@
 #+DESCRIPTION:
 #+KEYWORDS:
 #+LANGUAGE:  en
-#+OPTIONS:   H:2 num:t toc:1-3 \n:nil @:t ::t |:t ^:t -:t f:t *:t <:th
+#+OPTIONS:   H:2 num:t toc:1-3 \n:nil @:t ::t |:t ^:t -:t f:t *:t <:t
 #+OPTIONS:   TeX:t LaTeX:t skip:nil d:nil todo:nil pri:nil tags:not-in-toc
 #+INFOJS_OPT: view:nil toc:nil ltoc:t mouse:underline buttons:0 path:http://orgmode.org/org-info.js
 #+EXPORT_SELECT_TAGS: export
@@ -38,8 +38,9 @@ And got this scatter plot (Figure 1):
 [[file:images/generateDataset(50,sin,0.03).png]]
 
 ** Polynomial Curve Fitting
+
 I used
-#+INCLUDE "code/hw2.py" src python :lines "19-30"
+#+INCLUDE "code/hw2.py" src python :lines "19-31"
 
 and ran
 #+INCLUDE "code/session.ipy" src python :lines "16-38"
@@ -62,6 +63,7 @@ to get Figure 3:
 
 Which I feel makes the point of over-fitting more obvious. 
 
+
 ** Polynomial Curve Fitting with Regularization
 Using the standard penalty function:
 
@@ -75,12 +77,12 @@ W_{PLS} = (\Phi^{T}\Phi + \lambda \mathrm{I})^{-1}\Phi^{T}t
 \end{equation}
 
 I wrote:
-#+INCLUDE "code/hw2.py" src python :lines "31-46"
+#+INCLUDE "code/hw2.py" src python :lines "31-47"
 
 To generate the 3 slices of the data set:
-#+INCLUDE "code/hw2.py" src python :lines "47-59"
+#+INCLUDE "code/hw2.py" src python :lines "47-60"
 
-To get the error term for given $x_{i}$, $t_{i}$ $M$ and the
+To get the error term for a given $x_{i}$, $t_{i}$, $M$ and the
 normalized error function, for the training and other sets:
 
 *** N=10
@@ -160,17 +162,17 @@ S^{-1} = \alpha I + \frac{1}{\sigma^{2}}
 \end{equation}
 
 The implementation is:
-#+INCLUDE "code/hw2.py" src python :lines "106-128"
+#+INCLUDE "code/hw2.py" src python :lines "106-140"
 
 running:
-#+INCLUDE "code/session.ipy" src python :lines "112-127"
+#+INCLUDE "code/session.ipy" src python :lines "112-129"
 resulted in Figure 4:
 #+CAPTION: *Figure 4*
 #+ATTR_HTML: width="950"
 [[file:images/bishop_N=10_sin(x).png]]
 
 and for $N=100$:
-#+INCLUDE "code/session.ipy" src python :lines "112-127"
+#+INCLUDE "code/session.ipy" src python :lines "131-147"
 resulted in Figure 5:
 #+CAPTION: *Figure 5*
 #+ATTR_HTML: width="950"
@@ -178,7 +180,7 @@ resulted in Figure 5:
 
 *BUT* Bishop used $sin(2 \pi x)$ which looks nicer, so I tried that
  too:
-#+INCLUDE "code/session.ipy" src python :lines "147-183"
+#+INCLUDE "code/session.ipy" src python :lines "147-184"
  
 #+CAPTION: *Figure 6*
 #+ATTR_HTML: width="950"
@@ -196,14 +198,15 @@ sinusoidal, and increase on 'curved' ones.
 [[http://www.cs.bgu.ac.il/~elhadad/nlp12/prmlfigs-png/Figure1.17.png]]
 
 * Classification for Sentiment Analysis
-*I was greatly aided by [[http://streamhacker.com/2010/05/10/text-classification-sentiment-analysis-naive-bayes-classifier/][this]] blog post.*
+  
+  *I was greatly aided by* [[http://streamhacker.com/2010/05/10/text-classification-sentiment-analysis-naive-bayes-classifier/][this]] *blog post.*
 
 ** Baseline - Bag of words classifier
 
 Initially, I looked at the histograms of the positive and negative
 reviews split by length - in number of sentences.
 
-#+INCLUDE "code/session.ipy" src python :lines "197-244"
+#+INCLUDE "code/session.ipy" src python :lines "185-244"
 
 #+ATTR_HTML: width="950"
 [[file:images/pos_reviews_length.png]]
@@ -239,19 +242,18 @@ neg\_fd[i] = 341 \approx  \frac{1}{3} \cdot 1000
 
 
 *1) Construct a stratified split (training, test) dataset of (positive,
-   negative) documents of relative size (N-1)/N and 1/N.*
-#+INCLUDE "code/session.ipy" src python :lines "251-262"
-
+   negative) documents of relative size $\dfrac{N-1}{N}$ and $\dfrac{1}{N}$.*
+#+INCLUDE "code/session.ipy" src python :lines "250-261"
 
 *2) Train the Naive Bayes classifier on the training set.*
 #+INCLUDE "code/session.ipy" src python :lines "263-264"
 
 
 *3) Evaluate the learned classifier on the test set and report:*
-   1) Accuracy
+   + Accuracy
 #+INCLUDE "code/session.ipy" src python :lines "265-267"
 
-   2) Positive and Negative Precision, Recall, F-measure
+   + Positive and Negative Precision, Recall, F-measure
 #+INCLUDE "code/session.ipy" src python :lines "268-284"
 
 resulting in:
@@ -281,29 +283,474 @@ Judging from the [[https://duckduckgo.com/?q%3Dseagal][DuckDuckGo]] search query
 most probably refers to actor [[http://stevenseagal.com/][Steven Seagal]], which is a prominent
 feature of negative reviews.. :]
 
-* Footnotes
+
+** Data Exploration: Impact of Unknown Words
+
+Due to the fact that the split to train/test is random, it's
+impossible to create completely balanced bins. Moreover, in an example
+split (figure 8) we can see that the positive and negative test sets
+are not completely similar in distribution.
+
+#+CAPTION: *Figure 8*
+#+ATTR_HTML: width="950"
+[[file:images/new_word_pos_neg_5_bins.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/new_word_pos_neg_many_bins.png]]
+
+#+ATTR_HTML: width="950"
+[[file:images/2hist.png]]
+
+To handle this, I decided to use a pre-computed bin distribution (one
+that was the best or close for a few random samplings):
+
+\begin{equation}
+[0, 254],\: [255, 314],\: [315, 371],\: [372, 443],\: [444, \infty)
+\end{equation}
+
+*Organize the test dataset as a set of 5 groups according to the rate
+ of unknown words. Report for each of the 5 groups:* 
+
+Size of the bin, relative number of positive and negative documents
+Accuracy, positive and negative precision and recall:
+#+INCLUDE "code/session.ipy" src python :lines "360-439"
+
+#+INCLUDE "code/session.ipy" src python :lines "441-506"
+
+And graphically:
+
+#+ATTR_HTML: width="950"
+[[file:images/Groups.png]]
+
+I cannot explain the overall improvement in accuracy, despite the fact
+that less training was done.
+
+** Improved feature extraction 1: most frequent, stop words
+   
+   
+I used
+#+INCLUDE "code/hw2.py" src python :lines "233-258"
+
+giving:
+#+INCLUDE "code/session.ipy" src python :lines "508-533"
+
+
+*Compare the behavior of this new feature extractor with the baseline
+ bag of words.*
+
+accuracy was *worse(!)*, $0.685 < 0.705$.
+pos precision was slightly worse, $0.615 < 0.639$, but pos recall was
+better $(0.99 > 0.94)$. neg precision has also improved $0.974 >
+0.88$, but recall dropped from $0.47$ to $0.38$. As a result,
+F-measure remained almost unchanged for pos (from $0.76$ to $0.75$),
+and dropped from $0.614$ to $0.547$ for neg.
+
+*Try to optimize the value of the parameter K to learn a good
+ classifier.* 
+
+[[file:images/k_div_w_accuracy.png]]
+
+
+** Improved feature extraction 2: exploit part of speech information
+
+
+*Try to find optimal tags:* 
+
+I started by adding all the tags I think are relevant:
+#+BEGIN_EXAMPLE
+In [288]: extractor = make_pos_extractor(['ADJ', 'PRO', 'ADV', 'V',
+'VD', 'VG', 'VN', 'N']) 
+
+In [289]: classifier = evaluate_features(extractor, 10)
+accuracy: 0.655
+pos precision: 0.59748427673
+pos recall: 0.95
+pos F-measure: 0.733590733591
+neg precision: 0.878048780488
+neg recall: 0.36
+neg F-measure: 0.510638297872
+Most Informative Features
+                  sloppy = True              neg : pos    =     17.7 : 1.0
+               insulting = True              neg : pos    =     15.7 : 1.0
+                    slip = True              pos : neg    =     11.7 : 1.0
+              astounding = True              pos : neg    =     11.0 : 1.0
+               ludicrous = True              neg : pos    =     10.7 : 1.0
+             fascination = True              pos : neg    =     10.3 : 1.0
+             outstanding = True              pos : neg    =     10.3 : 1.0
+               marvelous = True              pos : neg    =     10.2 : 1.0
+               strengths = True              pos : neg    =      9.7 : 1.0
+                  hatred = True              pos : neg    =      9.7 : 1.0
+
+#+END_EXAMPLE
+
+Which gave $0.655$ accuracy.
+
+since there are only 
+\begin{equation}
+\sum_{i=1}^{8}\binom{8}{i} = 255
+\end{equation}
+options, I decided to brute force it.
+
+#+BEGIN_EXAMPLE src python
+In [335]: from itertools import combinations
+
+In [336]: for i in range(1,8):
+     ...:     print 'i={}'.format(i)
+     ...:     sys.stdout.flush()
+     ...:     for comb in combinations(all_tags, i):
+     ...:         extractor = make_pos_extractor(list(comb))
+     ...:         acc = evaluate_features(extractor, 10, only_acc=True)
+     ...:         print '{}: {}'.format(list(comb), acc)
+     ...:         sys.stdout.flush()
+     ...:         brute[repr(list(comb))] = acc
+i=1
+['ADJ']: 0.7
+['PRO']: 0.625
+['ADV']: 0.68
+['V']: 0.655
+['VD']: 0.59
+['VG']: 0.635
+['VN']: 0.575
+['N']: 0.605
+i=2
+['ADJ', 'PRO']: 0.71
+['ADJ', 'ADV']: 0.69
+['ADJ', 'V']: 0.69
+['ADJ', 'VD']: 0.675
+['ADJ', 'VG']: 0.69
+['ADJ', 'VN']: 0.665
+['ADJ', 'N']: 0.655
+['PRO', 'ADV']: 0.695
+['PRO', 'V']: 0.62
+['PRO', 'VD']: 0.555
+['PRO', 'VG']: 0.585
+['PRO', 'VN']: 0.59
+['PRO', 'N']: 0.68
+['ADV', 'V']: 0.72
+['ADV', 'VD']: 0.7
+['ADV', 'VG']: 0.64
+['ADV', 'VN']: 0.625
+['ADV', 'N']: 0.62
+['V', 'VD']: 0.65
+['V', 'VG']: 0.645
+['V', 'VN']: 0.62
+['V', 'N']: 0.69
+['VD', 'VG']: 0.62
+['VD', 'VN']: 0.605
+['VD', 'N']: 0.65
+['VG', 'VN']: 0.645
+['VG', 'N']: 0.615
+['VN', 'N']: 0.645
+i=3
+['ADJ', 'PRO', 'ADV']: 0.71
+['ADJ', 'PRO', 'V']: 0.725
+['ADJ', 'PRO', 'VD']: 0.7
+['ADJ', 'PRO', 'VG']: 0.7
+['ADJ', 'PRO', 'VN']: 0.755
+['ADJ', 'PRO', 'N']: 0.635
+['ADJ', 'ADV', 'V']: 0.745
+['ADJ', 'ADV', 'VD']: 0.68
+['ADJ', 'ADV', 'VG']: 0.77
+['ADJ', 'ADV', 'VN']: 0.72
+['ADJ', 'ADV', 'N']: 0.64
+['ADJ', 'V', 'VD']: 0.72
+['ADJ', 'V', 'VG']: 0.72
+['ADJ', 'V', 'VN']: 0.735
+['ADJ', 'V', 'N']: 0.64
+['ADJ', 'VD', 'VG']: 0.735
+['ADJ', 'VD', 'VN']: 0.635
+['ADJ', 'VD', 'N']: 0.635
+['ADJ', 'VG', 'VN']: 0.735
+['ADJ', 'VG', 'N']: 0.63
+['ADJ', 'VN', 'N']: 0.645
+['PRO', 'ADV', 'V']: 0.625
+['PRO', 'ADV', 'VD']: 0.72
+['PRO', 'ADV', 'VG']: 0.65
+['PRO', 'ADV', 'VN']: 0.7
+['PRO', 'ADV', 'N']: 0.64
+['PRO', 'V', 'VD']: 0.595
+['PRO', 'V', 'VG']: 0.69
+['PRO', 'V', 'VN']: 0.7
+['PRO', 'V', 'N']: 0.63
+['PRO', 'VD', 'VG']: 0.625
+['PRO', 'VD', 'VN']: 0.615
+['PRO', 'VD', 'N']: 0.655
+['PRO', 'VG', 'VN']: 0.635
+['PRO', 'VG', 'N']: 0.66
+['PRO', 'VN', 'N']: 0.64
+['ADV', 'V', 'VD']: 0.715
+['ADV', 'V', 'VG']: 0.765
+['ADV', 'V', 'VN']: 0.725
+['ADV', 'V', 'N']: 0.675
+['ADV', 'VD', 'VG']: 0.695
+['ADV', 'VD', 'VN']: 0.655
+['ADV', 'VD', 'N']: 0.635
+['ADV', 'VG', 'VN']: 0.685
+['ADV', 'VG', 'N']: 0.67
+['ADV', 'VN', 'N']: 0.65
+['V', 'VD', 'VG']: 0.63
+['V', 'VD', 'VN']: 0.65
+['V', 'VD', 'N']: 0.68
+['V', 'VG', 'VN']: 0.695
+['V', 'VG', 'N']: 0.6
+['V', 'VN', 'N']: 0.625
+['VD', 'VG', 'VN']: 0.675
+['VD', 'VG', 'N']: 0.69
+['VD', 'VN', 'N']: 0.61
+['VG', 'VN', 'N']: 0.685
+i=4
+['ADJ', 'PRO', 'ADV', 'V']: 0.745
+['ADJ', 'PRO', 'ADV', 'VD']: 0.735
+['ADJ', 'PRO', 'ADV', 'VG']: 0.7
+['ADJ', 'PRO', 'ADV', 'VN']: 0.715
+['ADJ', 'PRO', 'ADV', 'N']: 0.605
+['ADJ', 'PRO', 'V', 'VD']: 0.755
+['ADJ', 'PRO', 'V', 'VG']: 0.735
+['ADJ', 'PRO', 'V', 'VN']: 0.67
+['ADJ', 'PRO', 'V', 'N']: 0.7
+['ADJ', 'PRO', 'VD', 'VG']: 0.7
+['ADJ', 'PRO', 'VD', 'VN']: 0.655
+['ADJ', 'PRO', 'VD', 'N']: 0.645
+['ADJ', 'PRO', 'VG', 'VN']: 0.71
+['ADJ', 'PRO', 'VG', 'N']: 0.63
+['ADJ', 'PRO', 'VN', 'N']: 0.595
+['ADJ', 'ADV', 'V', 'VD']: 0.71
+['ADJ', 'ADV', 'V', 'VG']: 0.75
+['ADJ', 'ADV', 'V', 'VN']: 0.745
+['ADJ', 'ADV', 'V', 'N']: 0.645
+['ADJ', 'ADV', 'VD', 'VG']: 0.74
+['ADJ', 'ADV', 'VD', 'VN']: 0.675
+['ADJ', 'ADV', 'VD', 'N']: 0.67
+['ADJ', 'ADV', 'VG', 'VN']: 0.695
+['ADJ', 'ADV', 'VG', 'N']: 0.72
+['ADJ', 'ADV', 'VN', 'N']: 0.645
+['ADJ', 'V', 'VD', 'VG']: 0.765
+['ADJ', 'V', 'VD', 'VN']: 0.685
+['ADJ', 'V', 'VD', 'N']: 0.66
+['ADJ', 'V', 'VG', 'VN']: 0.705
+['ADJ', 'V', 'VG', 'N']: 0.615
+['ADJ', 'V', 'VN', 'N']: 0.64
+['ADJ', 'VD', 'VG', 'VN']: 0.64
+['ADJ', 'VD', 'VG', 'N']: 0.685
+['ADJ', 'VD', 'VN', 'N']: 0.615
+['ADJ', 'VG', 'VN', 'N']: 0.65
+['PRO', 'ADV', 'V', 'VD']: 0.77
+['PRO', 'ADV', 'V', 'VG']: 0.69
+['PRO', 'ADV', 'V', 'VN']: 0.62
+['PRO', 'ADV', 'V', 'N']: 0.68
+['PRO', 'ADV', 'VD', 'VG']: 0.775
+['PRO', 'ADV', 'VD', 'VN']: 0.685
+['PRO', 'ADV', 'VD', 'N']: 0.63
+['PRO', 'ADV', 'VG', 'VN']: 0.66
+['PRO', 'ADV', 'VG', 'N']: 0.63
+['PRO', 'ADV', 'VN', 'N']: 0.59
+['PRO', 'V', 'VD', 'VG']: 0.715
+['PRO', 'V', 'VD', 'VN']: 0.64
+['PRO', 'V', 'VD', 'N']: 0.715
+['PRO', 'V', 'VG', 'VN']: 0.675
+['PRO', 'V', 'VG', 'N']: 0.65
+['PRO', 'V', 'VN', 'N']: 0.615
+['PRO', 'VD', 'VG', 'VN']: 0.68
+['PRO', 'VD', 'VG', 'N']: 0.625
+['PRO', 'VD', 'VN', 'N']: 0.575
+['PRO', 'VG', 'VN', 'N']: 0.615
+['ADV', 'V', 'VD', 'VG']: 0.735
+['ADV', 'V', 'VD', 'VN']: 0.69
+['ADV', 'V', 'VD', 'N']: 0.66
+['ADV', 'V', 'VG', 'VN']: 0.73
+['ADV', 'V', 'VG', 'N']: 0.675
+['ADV', 'V', 'VN', 'N']: 0.605
+['ADV', 'VD', 'VG', 'VN']: 0.67
+['ADV', 'VD', 'VG', 'N']: 0.705
+['ADV', 'VD', 'VN', 'N']: 0.66
+['ADV', 'VG', 'VN', 'N']: 0.685
+['V', 'VD', 'VG', 'VN']: 0.615
+['V', 'VD', 'VG', 'N']: 0.695
+['V', 'VD', 'VN', 'N']: 0.665
+['V', 'VG', 'VN', 'N']: 0.585
+['VD', 'VG', 'VN', 'N']: 0.62
+i=5
+['ADJ', 'PRO', 'ADV', 'V', 'VD']: 0.735
+['ADJ', 'PRO', 'ADV', 'V', 'VG']: 0.69
+['ADJ', 'PRO', 'ADV', 'V', 'VN']: 0.69
+['ADJ', 'PRO', 'ADV', 'V', 'N']: 0.63
+['ADJ', 'PRO', 'ADV', 'VD', 'VG']: 0.715
+['ADJ', 'PRO', 'ADV', 'VD', 'VN']: 0.74
+['ADJ', 'PRO', 'ADV', 'VD', 'N']: 0.71
+['ADJ', 'PRO', 'ADV', 'VG', 'VN']: 0.725
+['ADJ', 'PRO', 'ADV', 'VG', 'N']: 0.675
+['ADJ', 'PRO', 'ADV', 'VN', 'N']: 0.665
+['ADJ', 'PRO', 'V', 'VD', 'VG']: 0.735
+['ADJ', 'PRO', 'V', 'VD', 'VN']: 0.71
+['ADJ', 'PRO', 'V', 'VD', 'N']: 0.71
+['ADJ', 'PRO', 'V', 'VG', 'VN']: 0.73
+['ADJ', 'PRO', 'V', 'VG', 'N']: 0.645
+['ADJ', 'PRO', 'V', 'VN', 'N']: 0.65
+['ADJ', 'PRO', 'VD', 'VG', 'VN']: 0.68
+['ADJ', 'PRO', 'VD', 'VG', 'N']: 0.605
+['ADJ', 'PRO', 'VD', 'VN', 'N']: 0.655
+['ADJ', 'PRO', 'VG', 'VN', 'N']: 0.655
+['ADJ', 'ADV', 'V', 'VD', 'VG']: 0.785
+['ADJ', 'ADV', 'V', 'VD', 'VN']: 0.72
+['ADJ', 'ADV', 'V', 'VD', 'N']: 0.685
+['ADJ', 'ADV', 'V', 'VG', 'VN']: 0.745
+['ADJ', 'ADV', 'V', 'VG', 'N']: 0.705
+['ADJ', 'ADV', 'V', 'VN', 'N']: 0.685
+['ADJ', 'ADV', 'VD', 'VG', 'VN']: 0.7
+['ADJ', 'ADV', 'VD', 'VG', 'N']: 0.65
+['ADJ', 'ADV', 'VD', 'VN', 'N']: 0.675
+['ADJ', 'ADV', 'VG', 'VN', 'N']: 0.675
+['ADJ', 'V', 'VD', 'VG', 'VN']: 0.675
+['ADJ', 'V', 'VD', 'VG', 'N']: 0.665
+['ADJ', 'V', 'VD', 'VN', 'N']: 0.69
+['ADJ', 'V', 'VG', 'VN', 'N']: 0.63
+['ADJ', 'VD', 'VG', 'VN', 'N']: 0.59
+['PRO', 'ADV', 'V', 'VD', 'VG']: 0.71
+['PRO', 'ADV', 'V', 'VD', 'VN']: 0.685
+['PRO', 'ADV', 'V', 'VD', 'N']: 0.69
+['PRO', 'ADV', 'V', 'VG', 'VN']: 0.725
+['PRO', 'ADV', 'V', 'VG', 'N']: 0.68
+['PRO', 'ADV', 'V', 'VN', 'N']: 0.68
+['PRO', 'ADV', 'VD', 'VG', 'VN']: 0.69
+['PRO', 'ADV', 'VD', 'VG', 'N']: 0.685
+['PRO', 'ADV', 'VD', 'VN', 'N']: 0.615
+['PRO', 'ADV', 'VG', 'VN', 'N']: 0.635
+['PRO', 'V', 'VD', 'VG', 'VN']: 0.675
+['PRO', 'V', 'VD', 'VG', 'N']: 0.64
+['PRO', 'V', 'VD', 'VN', 'N']: 0.65
+['PRO', 'V', 'VG', 'VN', 'N']: 0.62
+['PRO', 'VD', 'VG', 'VN', 'N']: 0.625
+['ADV', 'V', 'VD', 'VG', 'VN']: 0.67
+['ADV', 'V', 'VD', 'VG', 'N']: 0.665
+['ADV', 'V', 'VD', 'VN', 'N']: 0.665
+['ADV', 'V', 'VG', 'VN', 'N']: 0.65
+['ADV', 'VD', 'VG', 'VN', 'N']: 0.575
+['V', 'VD', 'VG', 'VN', 'N']: 0.635
+i=6
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VG']: 0.725
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VN']: 0.68
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'N']: 0.665
+['ADJ', 'PRO', 'ADV', 'V', 'VG', 'VN']: 0.715
+['ADJ', 'PRO', 'ADV', 'V', 'VG', 'N']: 0.7
+['ADJ', 'PRO', 'ADV', 'V', 'VN', 'N']: 0.7
+['ADJ', 'PRO', 'ADV', 'VD', 'VG', 'VN']: 0.71
+['ADJ', 'PRO', 'ADV', 'VD', 'VG', 'N']: 0.665
+['ADJ', 'PRO', 'ADV', 'VD', 'VN', 'N']: 0.7
+['ADJ', 'PRO', 'ADV', 'VG', 'VN', 'N']: 0.665
+['ADJ', 'PRO', 'V', 'VD', 'VG', 'VN']: 0.685
+['ADJ', 'PRO', 'V', 'VD', 'VG', 'N']: 0.64
+['ADJ', 'PRO', 'V', 'VD', 'VN', 'N']: 0.67
+['ADJ', 'PRO', 'V', 'VG', 'VN', 'N']: 0.68
+['ADJ', 'PRO', 'VD', 'VG', 'VN', 'N']: 0.62
+['ADJ', 'ADV', 'V', 'VD', 'VG', 'VN']: 0.735
+['ADJ', 'ADV', 'V', 'VD', 'VG', 'N']: 0.655
+['ADJ', 'ADV', 'V', 'VD', 'VN', 'N']: 0.67
+['ADJ', 'ADV', 'V', 'VG', 'VN', 'N']: 0.68
+['ADJ', 'ADV', 'VD', 'VG', 'VN', 'N']: 0.615
+['ADJ', 'V', 'VD', 'VG', 'VN', 'N']: 0.665
+['PRO', 'ADV', 'V', 'VD', 'VG', 'VN']: 0.735
+['PRO', 'ADV', 'V', 'VD', 'VG', 'N']: 0.645
+['PRO', 'ADV', 'V', 'VD', 'VN', 'N']: 0.655
+['PRO', 'ADV', 'V', 'VG', 'VN', 'N']: 0.705
+['PRO', 'ADV', 'VD', 'VG', 'VN', 'N']: 0.695
+['PRO', 'V', 'VD', 'VG', 'VN', 'N']: 0.62
+['ADV', 'V', 'VD', 'VG', 'VN', 'N']: 0.635
+i=7
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VG', 'VN']: 0.665
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VG', 'N']: 0.68
+['ADJ', 'PRO', 'ADV', 'V', 'VD', 'VN', 'N']: 0.645
+['ADJ', 'PRO', 'ADV', 'V', 'VG', 'VN', 'N']: 0.73
+['ADJ', 'PRO', 'ADV', 'VD', 'VG', 'VN', 'N']: 0.635
+['ADJ', 'PRO', 'V', 'VD', 'VG', 'VN', 'N']: 0.695
+['ADJ', 'ADV', 'V', 'VD', 'VG', 'VN', 'N']: 0.685
+['PRO', 'ADV', 'V', 'VD', 'VG', 'VN', 'N']: 0.68
+
+In [337]: len brute
+Out[337]: 254
+
+In [338]: max(brute.values())
+Out[338]: 0.785
+
+In [339]: dmp = [k for k in brute]
+
+In [340]: dmp[0]
+Out[340]: "['ADV', 'VN', 'N']"
+
+In [341]: [(k, brute[k]) for k in brute if brute[k] >= 0.78]
+Out[341]: [("['ADJ', 'ADV', 'V', 'VD', 'VG']", 0.785)]
+#+END_EXAMPLE
+
+so, the best I could find (simplified tags) is: *['ADJ', 'ADV', 'V',
+'VD', 'VG']*.
+
+
+
+** Improved feature extraction 3: bigrams
+
+*** Baseline
+
+*First, let us compare baselines:*
+
+
+*Report on the results for these features for N=4.*
+
+   *The bag of words (unigram) learned above.*
+#+INCLUDE "code/session.ipy" src python :lines "547-572"
+
+    *All bigrams (use the nltk.util.bigrams function).*
+    
+    extractor:
+#+INCLUDE "code/hw2.py" src python :lines "296-303"
+
+#+INCLUDE "code/session.ipy" src python :lines "573-596"
+    
+    *Unigrams and bigrams together* 
+    
+    extractor:
+#+INCLUDE "code/hw2.py" src python :lines "304-312"
+    
+#+INCLUDE "code/session.ipy" src python :lines "597-617"
+
+    It is obvious from the results that we have a mediocre coverage,
+    since (for example) the bigrams extractor found "is perfect"
+    (16.3 : 1.0), and "is terrific" (15.0 : 1.0), while the unified
+    extractor's best bigram has "not funny" (12.3 : 1.0).
+
+
+*** Employing the strength metrics:
+
+**** At the corpus level (cheating)
+     code for the extractor:
+
+#+INCLUDE "code/hw2.py" src python :lines "314-334"
+
+     I tried different values for n (n-strongest bigrams) until I felt
+     it had reached a plateau:
+
+#+INCLUDE "code/session.ipy" src python :lines "619-729"
+
+
+**** At the review level
+     code for the extractor:
+
+#+INCLUDE "code/hw2.py" src python :lines "335-353"
+
+     I tried keeping the strongest 200, 300 and 400 bigrams (plateau),
+     producing: 
+#+INCLUDE "code/session.ipy" src python :lines "730-793"
+
+     This seems to give much better results.
+
+
+
+
+* Thank You :)
+    
+# * Footnotes
 
 [fn:1] Fernando Pérez, Brian E. Granger, IPython: A System for
   Interactive Scientific Computing, Computing in Science and
   Engineering, vol. 9, no. 3, pp. 21-29, May/June 2007,
   doi:10.1109/MCSE.2007.53. URL: http://ipython.org 
-
-
-
-
-#+BEGIN_HTML
-<p>
-<a href="http://validator.w3.org/check?uri=referer"><img
-src="http://www.w3.org/Icons/valid-xhtml10" alt="Valid XHTML 1.0 Strict" height="31" width="88" /></a>
-</p>
-#+END_HTML
-
-
-
-
-
-
-
-
 
 

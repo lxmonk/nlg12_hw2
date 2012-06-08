@@ -147,7 +147,8 @@ pylab.close('all')          # close the fig
 
 # Q1.4 N=10 sin(2*pi*x)
 x10, t10 = generateDataset(10, lambda x: sin(2*np.pi*x), 0.03)
-x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03) # just for result - NOT estimate (smoother graphs)
+ # just for result - NOT estimate (smoother graphs)
+x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03)
 
 m, s2 = bayesianEstimator(x10, t10, M=9, alpha=0.005, sigma2=1/11.1)
 subplot(111)
@@ -163,7 +164,6 @@ ylabel('$t$')
 legend(loc=0)
 savefig('images/bishop_N=10_sin(2*pi*x)', dpi=(200))
 pylab.close('all')          # close the fig
-
 
 # Q1.4 N=100
 x100, t100 = generateDataset(100, lambda x: sin(2*np.pi*x), 0.03)
@@ -190,7 +190,6 @@ negative = movie_reviews.fileids('neg')
 positive = movie_reviews.fileids('pos')
 
 
-import nltk.classify.NaiveBayesClassifier as naive
 from nltk.classify import NaiveBayesClassifier as naive
 from nltk.classify.util import accuracy
 from nltk.metrics import precision, recall
@@ -260,6 +259,7 @@ len(trainfeats)                 # 1800
 testfeats = negfeats[900:] + posfeats[900:]
 len(testfeats)                  # 200
 
+
 classifier = naive.train(trainfeats)
 
 print 'accuracy: {}'.format(accuracy(classifier, testfeats))
@@ -304,4 +304,490 @@ classifier.show_most_informative_features()
 #      elliot = True              pos : neg    =     10.3 : 1.0
 #   insulting = True              neg : pos    =      9.8 : 1.0
 #       dread = True              pos : neg    =      9.7 : 1.0
+
+# Q 2.2
+negtrain, negtest = stratifiedSamples(negfeats, 2)
+postrain, postest = stratifiedSamples(posfeats, 2)
+
+trainwords = set()
+
+for ob in postrain + negtrain:
+    featuredict, lab = ob
+    for k in featuredict.iterkeys():
+        trainwords.add(k)
+
+pos_word_fd = nltk.FreqDist([unknown_words(featuredict.keys(), trainwords) for
+                             featuredict, lab in postest])
+neg_word_fd = nltk.FreqDist([unknown_words(featuredict.keys(), trainwords) for
+                             featuredict, lab in negtest])
+
+
+
+hist(list(chain.from_iterable([[k]*pos_word_fd[k] for k in pos_word_fd.keys()])),
+     bins=(max(pos_word_fd.keys()) - min(pos_word_fd.keys()) + 1)/3,
+     label='positive')
+
+hist(list(chain.from_iterable([[k]*neg_word_fd[k] for k in neg_word_fd.keys()])),
+     bins=(max(neg_word_fd.keys()) - min(neg_word_fd.keys()) + 1)/3,
+     label='negative')
+
+box(False)
+xlabel('Unknown words in review')
+ylabel('No. of reviews')
+legend()
+title('New words per review')
+savefig('images/new_word_pos_neg_many_bins.png', dpi=200)
+pylab.close('all')          # close the fig
+
+
+
+hist(list(chain.from_iterable([[k]*pos_word_fd[k] for k in pos_word_fd.keys()])),
+     bins=5,
+     label='positive')
+
+
+hist(list(chain.from_iterable([[k]*neg_word_fd[k] for k in neg_word_fd.keys()])),
+     bins=5,
+     label='negative')
+
+box(False)
+xlabel('Unknown words in review')
+ylabel('No. of reviews')
+legend()
+title('New words per review')
+savefig('images/new_word_pos_neg_5_bins.png', dpi=200)
+pylab.close('all')          # close the fig
+
+# Q2.2 spliting by unknown word number
+# set of known words:
+trainwords = set()
+
+for rev in postrain + negtrain:
+    featuredict, lab = rev
+    for k in featuredict.iterkeys():
+        trainwords.add(k)
+
+test_known = {'pos' : {}, 'neg' : {}}
+test_known['pos'][1] = []
+test_known['pos'][2] = []
+test_known['pos'][3] = []
+test_known['pos'][4] = []
+test_known['pos'][5] = []
+
+test_known['neg'][1] = []
+test_known['neg'][2] = []
+test_known['neg'][3] = []
+test_known['neg'][4] = []
+test_known['neg'][5] = []
+
+
+for rev in postest:
+    if unknown_words(rev[0].keys(), trainwords) <= 254:
+        test_known['pos'][1].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) <= 314:
+        test_known['pos'][2].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) <= 371:
+        test_known['pos'][3].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) <= 443:
+        test_known['pos'][4].append(rev)
+    else:
+        test_known['pos'][5].append(rev)
+
+for rev in negtest:
+    if unknown_words(rev[0].keys(), trainwords) <= 254:
+        test_known['neg'][1].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) <= 314:
+        test_known['neg'][2].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) <= 371:
+        test_known['neg'][3].append(rev)
+    elif unknown_words(rev[0].keys(), trainwords) <= 443:
+        test_known['neg'][4].append(rev)
+    else:
+        test_known['neg'][5].append(rev)
+
+# reporting results:
+# from nltk.classify import NaiveBayesClassifier as naive
+from nltk.classify.util import accuracy
+from nltk.metrics import precision, recall, f_measure
+
+for group in range(1,6):
+    print
+    classifier = naive.train(test_known['pos'][group] +
+                             test_known['neg'][group])
+    for feel in ['pos', 'neg']:
+        print '{} group {}:'.format(feel, group)
+        print '\tsize: {}'.format(len(test_known[feel][group]))
+        if 'neg' in feel:
+            l_pos = float(len(test_known['pos'][group]))
+            l_neg = len(test_known['neg'][group])
+            print 'positive docs are {:.2%} percent of the bin'.format(l_pos / (l_pos + l_neg))
+            print 'accuracy: {}'.format(accuracy(classifier, postest + negtest))
+            from collections import defaultdict
+            refsets = defaultdict(set)
+            testsets = defaultdict(set)
+
+            for i, (feats, label) in enumerate(testfeats):
+                refsets[label].add(i)
+                observed = classifier.classify(feats)
+                testsets[observed].add(i)
+        
+            print 'pos precision:', precision(refsets['pos'], testsets['pos'])
+            print 'pos recall:', recall(refsets['pos'], testsets['pos'])
+            print 'pos F-measure:', f_measure(refsets['pos'], testsets['pos'])
+            print 'neg precision:', precision(refsets['neg'], testsets['neg'])
+            print 'neg recall:', recall(refsets['neg'], testsets['neg'])
+            print 'neg F-measure:', f_measure(refsets['neg'], testsets['neg'])
+
+
+## OUTPUT:
+# pos group 1:
+#         size: 100
+# neg group 1:
+#         size: 110
+# positive docs are 47.62% percent of the bin
+# accuracy: 0.805
+# pos precision: 0.681034482759
+# pos recall: 0.79
+# pos F-measure: 0.731481481481
+# neg precision: 0.75
+# neg recall: 0.63
+# neg F-measure: 0.684782608696
+
+# pos group 2:
+#         size: 99
+# neg group 2:
+#         size: 118
+# positive docs are 45.62% percent of the bin
+# accuracy: 0.826
+# pos precision: 0.789473684211
+# pos recall: 0.75
+# pos F-measure: 0.769230769231
+# neg precision: 0.761904761905
+# neg recall: 0.8
+# neg F-measure: 0.780487804878
+
+# pos group 3:
+#         size: 101
+# neg group 3:
+#         size: 114
+# positive docs are 46.98% percent of the bin
+# accuracy: 0.838
+# pos precision: 0.745614035088
+# pos recall: 0.85
+# pos F-measure: 0.794392523364
+# neg precision: 0.825581395349
+# neg recall: 0.71
+# neg F-measure: 0.763440860215
+
+# pos group 4:
+#         size: 101
+# neg group 4:
+#         size: 103
+# positive docs are 49.51% percent of the bin
+# accuracy: 0.807
+# pos precision: 0.8
+# pos recall: 0.8
+# pos F-measure: 0.8
+# neg precision: 0.8
+# neg recall: 0.8
+# neg F-measure: 0.8
+
+# pos group 5:
+#         size: 99
+# neg group 5:
+#         size: 55
+# positive docs are 64.29% percent of the bin
+# accuracy: 0.766
+# pos precision: 0.758241758242
+# pos recall: 0.69
+# pos F-measure: 0.722513089005
+# neg precision: 0.715596330275
+# neg recall: 0.78
+# neg F-measure: 0.746411483254
+
+# Q2.3
+from nltk.corpus import stopwords
+stopset = set(stopwords.words('english'))
+
+extractor = make_topK_non_stop_word_extractor(10000, stopset)
+
+## OUTPUT
+# accuracy: 0.685
+# pos precision: 0.614906832298
+# pos recall: 0.99
+# pos F-measure: 0.758620689655
+# neg precision: 0.974358974359
+# neg recall: 0.38
+# neg F-measure: 0.546762589928
+# Most Informative Features
+#                stupidity = True              neg : pos    =     11.8 : 1.0
+#               astounding = True              pos : neg    =     11.0 : 1.0
+#              outstanding = True              pos : neg    =     11.0 : 1.0
+#                   avoids = True              pos : neg    =     10.3 : 1.0
+#                     slip = True              pos : neg    =     10.3 : 1.0
+#                marvelous = True              pos : neg    =     10.2 : 1.0
+#                insulting = True              neg : pos    =     10.2 : 1.0
+#              fascination = True              pos : neg    =      9.7 : 1.0
+#                      goo = True              neg : pos    =      9.7 : 1.0
+#                   hatred = True              pos : neg    =      9.7 : 1.0
+
+results = {}
+for k in range(10, 20000, 500):
+    print '{}..'.format(k),
+    extractor = make_topK_non_stop_word_extractor(k, stopset)
+    results[k] = evaluate_features(extractor, 10, only_acc=True)
+
+plot(sorted(results.keys()), array([results[k] for k in sorted(results.keys())]) / 40000.0)
+
+xlabel('$K/W$')
+ylabel('accuracy')
+savefig('images/k_div_w_accuracy.png', dpi=200)
+pylab.close('all')          # close the fig
+
+#Q2.5
+
+# Bag of words    
+In [20]: evaluate_features(bag_of_words, 4)
+
+    accuracy: 0.708
+    pos precision: 0.633333333333
+    pos recall: 0.988
+    pos F-measure: 0.771875
+    neg precision: 0.972727272727
+    neg recall: 0.428
+    neg F-measure: 0.594444444444
+    Most Informative Features
+                    poignant = True              pos : neg    =     15.0 : 1.0
+                   insulting = True              neg : pos    =     14.3 : 1.0
+                      finest = True              pos : neg    =     13.4 : 1.0
+                      avoids = True              pos : neg    =     11.0 : 1.0
+                        3000 = True              neg : pos    =     11.0 : 1.0
+                        lush = True              pos : neg    =     10.3 : 1.0
+                      prinze = True              neg : pos    =     10.3 : 1.0
+                     freddie = True              neg : pos    =     10.3 : 1.0
+                   ludicrous = True              neg : pos    =      9.9 : 1.0
+                      turkey = True              neg : pos    =      9.8 : 1.0
+                      
+    Out[20]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x4669ef90>           
+
+# simple bigram feature extractor
+In [18]: evaluate_features(bigram_extractor, 4)
+
+    accuracy: 0.75
+    pos precision: 0.676056338028
+    pos recall: 0.96
+    pos F-measure: 0.793388429752
+    neg precision: 0.931034482759
+    neg recall: 0.54
+    neg F-measure: 0.683544303797
+    Most Informative Features
+           ('is', 'perfect') = True              pos : neg    =     16.3 : 1.0
+          ('is', 'terrific') = True              pos : neg    =     15.0 : 1.0
+            ('not', 'funny') = True              neg : pos    =     12.3 : 1.0
+             ('waste', 'of') = True              neg : pos    =     11.4 : 1.0
+              ('a', 'place') = True              pos : neg    =     11.0 : 1.0
+       ('the', 'ridiculous') = True              neg : pos    =     11.0 : 1.0
+            ('insult', 'to') = True              neg : pos    =     11.0 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =     11.0 : 1.0
+           ('and', 'boring') = True              neg : pos    =     11.0 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =     10.3 : 1.0
+           
+    Out[18]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x47d0f10>
+
+# unigram and bigram extractor
+In [6]: evaluate_features(uni_and_bigram_extractor, 4); sys.stdout.flush()
+    accuracy: 0.74
+    pos precision: 0.661290322581
+    pos recall: 0.984
+    pos F-measure: 0.790996784566
+    neg precision: 0.96875
+    neg recall: 0.496
+    neg F-measure: 0.656084656085
+    Most Informative Features
+                      forgot = True              neg : pos    =     13.7 : 1.0
+                   marvelous = True              pos : neg    =     13.0 : 1.0
+            ('not', 'funny') = True              neg : pos    =     12.3 : 1.0
+          ('is', 'terrific') = True              pos : neg    =     12.3 : 1.0
+             ('makes', 'no') = True              neg : pos    =     11.7 : 1.0
+           ('and', 'boring') = True              neg : pos    =     11.7 : 1.0
+                       blend = True              pos : neg    =     11.7 : 1.0
+           ('is', 'perfect') = True              pos : neg    =     11.4 : 1.0
+                 outstanding = True              pos : neg    =     11.2 : 1.0
+          ('enjoyable', ',') = True              pos : neg    =     11.0 : 1.0
+
+
+# strong bigrams
+## corpus level:
+In [26]: from nltk.corpus import movie_reviews
+
+In [27]: words = movie_reviews.words()
+
+In [28]: evaluate_features(make_strong_bigrams_extractor(words, 400), 4)
+    accuracy: 0.502
+    pos precision: 0.50103950104
+    pos recall: 0.964
+    pos F-measure: 0.659370725034
+    neg precision: 0.526315789474
+    neg recall: 0.04
+    neg F-measure: 0.0743494423792
+    Most Informative Features
+           ('taye', 'diggs') = True              neg : pos    =      2.3 : 1.0
+        ('alfre', 'woodard') = True              pos : neg    =      1.7 : 1.0
+        ('rya', 'kihlstedt') = True              pos : neg    =      1.7 : 1.0
+        ('blythe', 'danner') = True              neg : pos    =      1.7 : 1.0
+          ('indien', 'dans') = None              pos : neg    =      1.0 : 1.0
+      ('bokeem', 'woodbine') = None              pos : neg    =      1.0 : 1.0
+            ('suzy', 'amis') = None              pos : neg    =      1.0 : 1.0
+        ('mychael', 'danna') = None              neg : pos    =      1.0 : 1.0
+    ('nicoletta', 'braschi') = None              neg : pos    =      1.0 : 1.0
+       ('farrah', 'fawcett') = None              neg : pos    =      1.0 : 1.0
+Out[28]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x223a9d50>
+
+In [29]: evaluate_features(make_strong_bigrams_extractor(words, 1000), 4)
+    accuracy: 0.546
+    pos precision: 0.605504587156
+    pos recall: 0.264
+    pos F-measure: 0.367688022284
+    neg precision: 0.529411764706
+    neg recall: 0.828
+    neg F-measure: 0.645865834633
+    Most Informative Features
+          ('mena', 'suvari') = True              neg : pos    =      5.7 : 1.0
+      ('nigel', 'hawthorne') = True              pos : neg    =      5.0 : 1.0
+        ('ewan', 'mcgregor') = True              pos : neg    =      3.8 : 1.0
+           ('jared', 'leto') = True              neg : pos    =      3.7 : 1.0
+           ('notre', 'dame') = True              pos : neg    =      3.7 : 1.0
+          ('ace', 'ventura') = True              neg : pos    =      3.4 : 1.0
+       ('marilyn', 'manson') = True              neg : pos    =      3.4 : 1.0
+        ('mortal', 'kombat') = True              neg : pos    =      3.4 : 1.0
+      ('natalie', 'portman') = True              pos : neg    =      3.0 : 1.0
+         ('winona', 'ryder') = True              pos : neg    =      3.0 : 1.0
+Out[29]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x2e655d0>
+
+In [30]: evaluate_features(make_strong_bigrams_extractor(words, 10000), 4)
+    accuracy: 0.654
+    pos precision: 0.6463878327
+    pos recall: 0.68
+    pos F-measure: 0.662768031189
+    neg precision: 0.662447257384
+    neg recall: 0.628
+    neg F-measure: 0.64476386037
+    Most Informative Features
+           ('fairy', 'tale') = True              pos : neg    =      9.7 : 1.0
+         ('kevin', 'spacey') = True              pos : neg    =      8.3 : 1.0
+          ('darth', 'vader') = True              pos : neg    =      8.3 : 1.0
+           ('matt', 'damon') = True              pos : neg    =      7.8 : 1.0
+           ('wan', 'kenobi') = True              pos : neg    =      7.7 : 1.0
+          ('taxi', 'driver') = True              pos : neg    =      7.0 : 1.0
+          ('chasing', 'amy') = True              pos : neg    =      7.0 : 1.0
+            ('ed', 'harris') = True              pos : neg    =      7.0 : 1.0
+        ('dennis', 'hopper') = True              neg : pos    =      7.0 : 1.0
+          ('jason', 'biggs') = True              neg : pos    =      6.3 : 1.0
+Out[30]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x223a98d0>
+
+In [31]: evaluate_features(make_strong_bigrams_extractor(words, 60000), 4)
+    accuracy: 0.836
+    pos precision: 0.808823529412
+    pos recall: 0.88
+    pos F-measure: 0.842911877395
+    neg precision: 0.868421052632
+    neg recall: 0.792
+    neg F-measure: 0.828451882845
+    Most Informative Features
+          ('nothing', 'new') = True              neg : pos    =     13.7 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =      9.7 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =      9.7 : 1.0
+    ('matthew', 'mcconaughey') = True              pos : neg    =      9.7 : 1.0
+                ('obi', '-') = True              pos : neg    =      9.0 : 1.0
+         ('very', 'similar') = True              pos : neg    =      9.0 : 1.0
+                ('-', 'wan') = True              pos : neg    =      9.0 : 1.0
+         ('portrayed', 'by') = True              pos : neg    =      8.3 : 1.0
+       ('extremely', 'well') = True              pos : neg    =      8.3 : 1.0
+           ('wan', 'kenobi') = True              pos : neg    =      8.3 : 1.0
+Out[31]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x15f5e5d0>
+
+In [32]: evaluate_features(make_strong_bigrams_extractor(words, 80000), 4)
+    accuracy: 0.804
+    pos precision: 0.755033557047
+    pos recall: 0.9
+    pos F-measure: 0.821167883212
+    neg precision: 0.876237623762
+    neg recall: 0.708
+    neg F-measure: 0.783185840708
+    Most Informative Features
+           ('matt', 'damon') = True              pos : neg    =     13.0 : 1.0
+       ('an', 'outstanding') = True              pos : neg    =     11.0 : 1.0
+              ('-', 'notch') = True              pos : neg    =     10.3 : 1.0
+           ('well', 'worth') = True              pos : neg    =      9.7 : 1.0
+          ('most', 'famous') = True              pos : neg    =      9.7 : 1.0
+            ('insult', 'to') = True              neg : pos    =      9.7 : 1.0
+              ('our', 'own') = True              pos : neg    =      9.7 : 1.0
+              ('&', 'robin') = True              neg : pos    =      9.0 : 1.0
+      ('joel', 'schumacher') = True              neg : pos    =      9.0 : 1.0
+           ('quite', 'well') = True              pos : neg    =      9.0 : 1.0
+Out[32]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x62939c90>
+
+## document level
+In [7]: evaluate_features(document_strong_extractor, 4) # 200 bigrams
+    accuracy: 0.808
+    pos precision: 0.859813084112
+    pos recall: 0.736
+    pos F-measure: 0.793103448276
+    neg precision: 0.769230769231
+    neg recall: 0.88
+    neg F-measure: 0.820895522388
+    Most Informative Features
+              ('give', 'us') = True              neg : pos    =     12.3 : 1.0
+           ('matt', 'damon') = True              pos : neg    =      9.7 : 1.0
+           ('well', 'worth') = True              pos : neg    =      9.7 : 1.0
+              ('does', 'so') = True              pos : neg    =      9.7 : 1.0
+       ('would', 'probably') = True              neg : pos    =      9.0 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =      8.3 : 1.0
+         ('common', 'sense') = True              neg : pos    =      8.3 : 1.0
+            ('that', 'will') = True              pos : neg    =      8.3 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =      8.3 : 1.0
+              ('&', 'robin') = True              neg : pos    =      8.3 : 1.0
+Out[7]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x3614fd0>
+
+In [9]: evaluate_features(document_strong_extractor, 4) # 300 bigrams
+    accuracy: 0.824
+    pos precision: 0.885714285714
+    pos recall: 0.744
+    pos F-measure: 0.808695652174
+    neg precision: 0.779310344828
+    neg recall: 0.904
+    neg F-measure: 0.837037037037
+    Most Informative Features
+        ('absolutely', 'no') = True              neg : pos    =     12.2 : 1.0
+              ('be', 'fair') = True              neg : pos    =     11.0 : 1.0
+      ('everything', 'from') = True              pos : neg    =     11.0 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =     10.3 : 1.0
+               ('so', 'why') = True              neg : pos    =     10.3 : 1.0
+           ('well', 'worth') = True              pos : neg    =     10.3 : 1.0
+           ('works', 'well') = True              pos : neg    =      9.7 : 1.0
+         ('through', 'this') = True              neg : pos    =      9.7 : 1.0
+              ('why', 'did') = True              neg : pos    =      9.0 : 1.0
+         ('saving', 'grace') = True              neg : pos    =      9.0 : 1.0
+Out[9]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x1efba50>
+
+In [16]: evaluate_features(document_strong_extractor, 4) # 400 bigrams
+    accuracy: 0.83
+    pos precision: 0.894736842105
+    pos recall: 0.748
+    pos F-measure: 0.814814814815
+    neg precision: 0.783505154639
+    neg recall: 0.912
+    neg F-measure: 0.842883548983
+    Most Informative Features
+      ('everything', 'from') = True              pos : neg    =     11.0 : 1.0
+             ('makes', 'no') = True              neg : pos    =     10.3 : 1.0
+           ('fairy', 'tale') = True              pos : neg    =     10.3 : 1.0
+       ('an', 'outstanding') = True              pos : neg    =     10.3 : 1.0
+        ('quite', 'frankly') = True              neg : pos    =      9.7 : 1.0
+      ('performances', 'by') = True              pos : neg    =      9.7 : 1.0
+             ('show', 'off') = True              neg : pos    =      9.7 : 1.0
+          ('should', 'know') = True              neg : pos    =      9.7 : 1.0
+    ('but', 'unfortunately') = True              neg : pos    =      9.0 : 1.0
+           ('well', 'worth') = True              pos : neg    =      9.0 : 1.0
+Out[16]: <nltk.classify.naivebayes.NaiveBayesClassifier at 0x1efb590>
 
